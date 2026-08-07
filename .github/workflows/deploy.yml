@@ -1,0 +1,42 @@
+name: CampFund Continuous Deployment
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy to Ubuntu Production VPS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Deploy to Ubuntu VPS via SSH
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.PORT || 22 }}
+          script: |
+            echo "Starting CampFund Deployment..."
+            cd /var/www/campfund || cd ~/campfund || exit 1
+            
+            echo "Pulling latest code from GitHub..."
+            git pull origin main
+            
+            echo "Building and restarting Docker containers..."
+            docker compose down --remove-orphans
+            docker compose up -d --build
+            
+            echo "Cleaning up dangling images..."
+            docker image prune -f
+            
+            echo "Verifying service health..."
+            docker compose ps
+            curl -f http://localhost:5001/api/health || echo "Health check warning"
+            
+            echo "CampFund successfully deployed!"

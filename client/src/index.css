@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-brand-primary: #007979;
+    --color-brand-secondary: #24B1B1;
+    --color-brand-accent: #FFE2AF;
+    --color-brand-cta: #E37434;
+    --color-brand-success: #16A34A;
+    --color-brand-error: #DC2626;
+    --color-brand-bg: #FFFDF8;
+    --color-brand-card: #FFFFFF;
+    --color-brand-text-primary: #1F2937;
+    --color-brand-text-secondary: #6B7280;
+    --color-brand-border: #E5E7EB;
+  }
+
+  body {
+    background-color: var(--color-brand-bg);
+    color: var(--color-brand-text-primary);
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Custom Utilities for CampFund Design System */
+.bg-brand-primary { background-color: #007979; }
+.bg-brand-primary-hover:hover { background-color: #006363; }
+.text-brand-primary { color: #007979; }
+.border-brand-primary { border-color: #007979; }
+
+.bg-brand-secondary { background-color: #24B1B1; }
+.bg-brand-secondary-hover:hover { background-color: #1ea0a0; }
+.text-brand-secondary { color: #24B1B1; }
+
+.bg-brand-accent { background-color: #FFE2AF; }
+.text-brand-accent-dark { color: #8C5B00; }
+
+.bg-brand-cta { background-color: #E37434; }
+.bg-brand-cta-hover:hover { background-color: #cb6225; }
+.text-brand-cta { color: #E37434; }
+
+.bg-brand-bg { background-color: #FFFDF8; }
+.bg-brand-card { background-color: #FFFFFF; }
+
+.border-brand-light { border-color: #E5E7EB; }
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

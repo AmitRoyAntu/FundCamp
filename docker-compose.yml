@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: campfund_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: campfund
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./server/database/init.sql:/docker-entrypoint-initdb.d/1_init.sql
+      - ./server/database/seed.sql:/docker-entrypoint-initdb.d/2_seed.sql
+    networks:
+      - campfund_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d campfund"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: campfund_server
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "5001:5001"
+    environment:
+      PORT: 5001
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/campfund
+      JWT_SECRET: campfund_production_super_secret_jwt_key_2026
+      CLIENT_URL: http://localhost:5173
+    networks:
+      - campfund_network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:5001/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: campfund_client
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "5173:80"
+    environment:
+      VITE_API_URL: http://server:5001/api
+    networks:
+      - campfund_network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  campfund_network:
+    driver: bridge

@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs
+dist/
+**/dist/
+build/
+**/build/
+
+# Logs and system files
+*.log
+.DS_Store
+.history/
+
+# Environment variables
+.env
+.env.local
+.env.*
+!.env.example
+!client/.env.example
+!server/.env.example
