@@ -1,0 +1,104 @@
+name: CampFund Continuous Integration
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  frontend-ci:
+    name: Frontend Build & Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: './client/package-lock.json'
+
+      - name: Install Client Dependencies
+        run: npm ci
+        working-directory: ./client
+
+      - name: Build Vite Frontend Assets
+        run: npm run build
+        working-directory: ./client
+
+  backend-ci:
+    name: Backend Syntax & Imports Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: './server/package-lock.json'
+
+      - name: Install Server Dependencies
+        run: npm ci
+        working-directory: ./server
+
+      - name: Validate Server Entry File
+        run: node --check server.js
+        working-directory: ./server
+
+  docker-integration:
+    name: Docker Stack Integration Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Create Environment File for CI
+        run: cp .env.example .env
+
+      - name: Build and Start Containers
+        run: docker compose up -d --build
+
+      - name: Wait for PostgreSQL Service Health
+        run: |
+          echo "Waiting for PostgreSQL database..."
+          for i in {1..30}; do
+            if docker compose exec -T postgres pg_isready -U postgres -d campfund > /dev/null 2>&1; then
+              echo "PostgreSQL is ready!"
+              break
+            fi
+            sleep 2
+          done
+
+      - name: Verify Backend API Health
+        run: |
+          echo "Checking Express API health..."
+          for i in {1..15}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5001/api/health || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "Backend API is healthy (HTTP 200)!"
+              break
+            fi
+            echo "Waiting for backend API... (Status: $STATUS)"
+            sleep 2
+          done
+          curl -f http://localhost:5001/api/health
+
+      - name: Verify Nginx Client Reverse Proxy
+        run: |
+          echo "Checking Nginx proxied API route..."
+          curl -f http://localhost:5173/api/campaigns
+
+      - name: Clean Up Stack
+        if: always()
+        run: docker compose down --volumes --remove-orphans

@@ -12,10 +12,10 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Deploy to Ubuntu VPS via SSH
-        uses: appleboy/ssh-action@v0.1.10
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
@@ -25,18 +25,23 @@ jobs:
             echo "Starting CampFund Deployment..."
             cd /var/www/campfund || cd ~/campfund || exit 1
             
-            echo "Pulling latest code from GitHub..."
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
+            echo "Ensuring production environment file..."
+            if [ ! -f .env ]; then
+              cp .env.example .env
+            fi
             
             echo "Building and restarting Docker containers..."
             docker compose down --remove-orphans
             docker compose up -d --build
             
-            echo "Cleaning up dangling images..."
+            echo "Cleaning up unused Docker images..."
             docker image prune -f
             
             echo "Verifying service health..."
+            sleep 5
             docker compose ps
-            curl -f http://localhost:5001/api/health || echo "Health check warning"
+            curl -f http://localhost:5001/api/health || (echo "Health check failed!" && exit 1)
             
             echo "CampFund successfully deployed!"
