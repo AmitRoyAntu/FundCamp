@@ -52,5 +52,6 @@ jobs:
             
             echo "Verifying deployment health..."
             curl -f http://localhost:5001/api/health
+            curl -f http://localhost:5173/api/campaigns
             
             echo "CampFund deployment complete!"
