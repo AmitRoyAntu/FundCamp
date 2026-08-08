@@ -1,10 +1,6 @@
 export const formatCurrency = (amount) => {
-  if (amount === undefined || amount === null) return '$0';
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(amount);
+  if (amount === undefined || amount === null) return '৳0';
+  return `৳${Number(amount).toLocaleString('en-US')}`;
 };
 
 export const calculatePercentage = (raised, goal) => {

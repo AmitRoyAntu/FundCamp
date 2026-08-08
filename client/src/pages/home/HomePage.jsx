@@ -79,7 +79,7 @@ export default function HomePage() {
           {/* Quick Metrics */}
           <div className="grid grid-cols-3 gap-4 pt-8 border-t border-[#E5E7EB]/80 max-w-lg mx-auto">
             <div>
-              <p className="text-2xl font-extrabold text-[#007979]">$150K+</p>
+              <p className="text-2xl font-extrabold text-[#007979]">৳150K+</p>
               <p className="text-xs text-[#6B7280] font-medium mt-0.5">Funds Raised</p>
             </div>
             <div>

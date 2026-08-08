@@ -11,7 +11,6 @@ import {
   Mail,
   Lock,
   LogIn,
-  UserCheck,
 } from 'lucide-react';
 
 export default function LoginPage() {
@@ -25,12 +24,11 @@ export default function LoginPage() {
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors },
   } = useForm({
     defaultValues: {
-      email: 'sarah.j@university.edu',
-      password: '12345678',
+      email: '',
+      password: '',
       rememberMe: true,
     },
   });
@@ -48,12 +46,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleQuickLogin = (email) => {
-    setValue('email', email);
-    setValue('password', '12345678');
-    handleSubmit(onSubmit)();
-  };
-
   return (
     <div className="min-h-[80vh] flex items-center justify-center py-10 px-4">
       <Card className="w-full max-w-md p-8 shadow-md border border-[#E5E7EB]">
@@ -69,7 +61,7 @@ export default function LoginPage() {
           <Input
             label="Email Address"
             type="email"
-            placeholder="e.g. alex.rivera@student.university.edu"
+            placeholder="e.g. u2201001@student.cuet.ac.bd"
             icon={Mail}
             error={errors.email?.message}
             register={register('email', {
@@ -118,36 +110,6 @@ export default function LoginPage() {
           >
             Sign In
           </Button>
-
-          {/* Quick Demo Login Preset Buttons */}
-          <div className="pt-4 border-t border-[#E5E7EB] space-y-2">
-            <p className="text-xs text-center text-[#6B7280] font-semibold uppercase tracking-wider">
-              Quick Demo Login
-            </p>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('sarah.j@university.edu')}
-                className="px-2.5 py-1.5 rounded-lg border border-[#E5E7EB] text-xs font-medium text-[#1F2937] hover:bg-[#FFE2AF]/40 transition-colors flex items-center justify-center gap-1"
-              >
-                <UserCheck className="w-3 h-3 text-[#007979]" /> Student
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('r.chen@university.edu')}
-                className="px-2.5 py-1.5 rounded-lg border border-[#E5E7EB] text-xs font-medium text-[#1F2937] hover:bg-[#FFE2AF]/40 transition-colors flex items-center justify-center gap-1"
-              >
-                <UserCheck className="w-3 h-3 text-[#007979]" /> Faculty
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('marcus.vance@alumni.university.edu')}
-                className="px-2.5 py-1.5 rounded-lg border border-[#E5E7EB] text-xs font-medium text-[#1F2937] hover:bg-[#FFE2AF]/40 transition-colors flex items-center justify-center gap-1"
-              >
-                <UserCheck className="w-3 h-3 text-[#007979]" /> Alumni
-              </button>
-            </div>
-          </div>
 
           <div className="text-center pt-2">
             <p className="text-sm text-[#6B7280]">

@@ -155,9 +155,9 @@ export default function DashboardPage() {
                   className="px-3 py-1.5 rounded-xl border border-[#E5E7EB] bg-white text-[#1F2937] focus:outline-none focus:ring-2 focus:ring-[#24B1B1] cursor-pointer"
                 >
                   <option value="recent">Most Recent</option>
-                  <option value="most_funded">Most Funded ($)</option>
+                  <option value="most_funded">Most Funded (৳)</option>
                   <option value="progress">Highest Progress (%)</option>
-                  <option value="goal_high">Highest Goal ($)</option>
+                  <option value="goal_high">Highest Goal (৳)</option>
                 </select>
 
                 {hasActiveFilters && (

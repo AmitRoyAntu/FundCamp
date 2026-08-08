@@ -139,7 +139,7 @@ export const INITIAL_MOCK_CAMPAIGNS = [
     createdAt: '2026-06-28',
     status: 'active',
     image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&q=80&w=1200',
-    story: 'Commercial myoelectric prosthetics can cost upwards of $40,000—putting them far out of reach for growing children. Our multidisciplinary robotics team develops lightweight, customizable 3D-printed prosthetic limbs at less than $500 in material costs.',
+    story: 'Commercial myoelectric prosthetics can cost upwards of ৳40,000—putting them far out of reach for growing children. Our multidisciplinary robotics team develops lightweight, customizable 3D-printed prosthetic limbs at less than ৳5000 in material costs.',
     objectives: [
       'Develop micro-EMG sensor boards with real-time signal filtering',
       'Source durable motor micro-actuators and silicone grips',

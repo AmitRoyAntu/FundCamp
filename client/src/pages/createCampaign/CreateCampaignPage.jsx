@@ -14,7 +14,7 @@ import { DEPARTMENTS } from '../../constants/userTypes';
 import toast from 'react-hot-toast';
 import {
   Sparkles,
-  DollarSign,
+  Banknote,
   Image as ImageIcon,
   Building2,
   Tag,
@@ -134,15 +134,15 @@ export default function CreateCampaignPage() {
 
           {/* Funding Goal Amount */}
           <Input
-            label="Funding Goal ($ USD)"
+            label="Funding Goal (৳ BDT)"
             type="number"
             placeholder="e.g. 15000"
-            icon={DollarSign}
+            icon={Banknote}
             error={errors.goalAmount?.message}
             register={register('goalAmount', {
               required: 'Funding goal amount is required',
-              min: { value: 100, message: 'Minimum funding goal is $100' },
-              max: { value: 1000000, message: 'Maximum goal is $1,000,000' },
+              min: { value: 1000, message: 'Minimum funding goal is ৳1000' },
+              max: { value: 10000000, message: 'Maximum goal is ৳10,000,000' },
             })}
           />
 
