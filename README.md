@@ -2,7 +2,7 @@
 
 CampFund is a production-ready university crowdfunding platform where students, faculty, and alumni create and support fundraising campaigns.
 
-The project is architected as a modular full-stack monorepo with independent `client` (React + Vite + Nginx) and `server` (Express REST API + PostgreSQL) microservices.
+The project is architected as a modular full-stack monorepo with independent `client` (React + Vite + Nginx), `server` (Express REST API + PostgreSQL), and a dedicated root `nginx` reverse proxy microservice.
 
 ---
 
@@ -10,16 +10,16 @@ The project is architected as a modular full-stack monorepo with independent `cl
 
 ```text
 campfund/
-├── client/                     # React Frontend Application (Port 5173 -> 80)
+├── client/                     # React Frontend Application (Internal Port 80)
 │   ├── src/                    # Components, pages, hooks, contexts, routes
 │   ├── public/                 # Static assets
-│   ├── nginx.conf              # Nginx reverse proxy & SPA routing config
-│   ├── Dockerfile              # Multi-stage Nginx build (Node 22-alpine + Nginx)
+│   ├── nginx.conf              # Internal static asset serving Nginx config
+│   ├── Dockerfile              # Multi-stage build (Node 22-alpine + Nginx)
 │   ├── package.json            # Frontend-only dependencies
-│   ├── vite.config.js          # Vite build configuration
+│   ├── vite.config.js          # Vite build & local dev proxy configuration
 │   ├── .env                    # Active frontend environment variables
 │   └── .env.example            # Frontend environment template
-├── server/                     # Express Backend API Application (Port 5001)
+├── server/                     # Express Backend API Application (Internal Port 5001)
 │   ├── config/                 # PostgreSQL pool connection & fallback
 │   ├── controllers/            # Auth, Campaign, Profile controllers
 │   ├── middleware/             # JWT auth middleware
@@ -32,11 +32,13 @@ campfund/
 │   ├── package.json            # Backend-only dependencies
 │   ├── .env                    # Active backend environment variables
 │   └── .env.example            # Backend environment template
+├── nginx/                      # Root Nginx Production Reverse Proxy
+│   └── nginx.conf              # Single public entrypoint (/ -> client:80, /api -> server:5001)
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml              # CI workflow (Frontend, Backend, Docker integration test)
 │       └── deploy.yml          # CD deployment workflow (SSH VPS deployment)
-├── docker-compose.yml          # Container orchestration (postgres, server, client)
+├── docker-compose.yml          # Container orchestration (postgres, server, client, nginx)
 ├── .env                        # Root environment variables for Docker Compose
 ├── .env.example                # Root environment template
 └── README.md                   # Project documentation
@@ -44,37 +46,38 @@ campfund/
 
 ---
 
-## 🏗️ Architecture & Networking
+## 🏗️ Architecture & Security Model
 
 ```text
-[ User Browser ] ---> http://localhost:5173
-                           │
-                           ▼
- ┌─────────────────────────────────────────────────────────────┐
- │ [Frontend Container: campfund_client]                       │
- │  • Nginx serves React static UI                              │
- │  • Proxies /api/* requests to server:5001                   │
- └──────────────────────────────┬──────────────────────────────┘
-                                │ Internal Docker Network (http://server:5001)
-                                ▼
- ┌─────────────────────────────────────────────────────────────┐
- │ [Backend Container: campfund_server]                        │
- │  • Express REST API                                         │
- │  • Node 22-alpine LTS                                       │
- └──────────────────────────────┬──────────────────────────────┘
-                                │ Internal Docker Network (postgres:5432)
-                                ▼
- ┌─────────────────────────────────────────────────────────────┐
- │ [Database Container: campfund_postgres]                     │
- │  • PostgreSQL 15-alpine Database                            │
- └──────────────────────────────┬──────────────────────────────┘
+                       [ User Browser ]
+                              │
+                              ▼ Public Port (CLIENT_PORT: 5173 / 80)
+                     ┌─────────────────┐
+                     │  root NGINX     │ (campfund_nginx)
+                     │  Reverse Proxy  │
+                     └────────┬────────┘
+                              │
+             ┌────────────────┴────────────────┐
+             │ Private Network                 │ Private Network
+             ▼ (http://client:80)              ▼ (http://server:5001)
+      ┌──────────────┐                  ┌──────────────┐
+      │ client NGINX │                  │ Express API  │ (campfund_server)
+      │ React SPA    │                  └──────┬───────┘
+      └──────────────┘                         │ Private Network (postgres:5432)
+       (campfund_client)                       ▼
+                                           PostgreSQL
+                                       (campfund_postgres)
 ```
+
+### Security Isolation Highlights:
+- **Single Public Entrypoint**: Only the `nginx` reverse proxy container exposes public ports (`CLIENT_PORT`: `5173` or `80`).
+- **Private Internal Network**: The `server` (Express API) and `postgres` (Database) containers operate strictly within the private `campfund_network` bridge and are not exposed directly to the public internet.
 
 ---
 
 ## ⚡ Quick Start with Docker Compose
 
-To spin up the complete production stack (PostgreSQL + Express Backend + React/Nginx Frontend):
+To spin up the complete production stack (PostgreSQL + Express Backend + React Frontend + Nginx Reverse Proxy):
 
 ```bash
 # 1. Clone the repository
@@ -87,9 +90,8 @@ docker compose up -d --build --wait
 
 ### Accessing Services:
 - **Web Application**: `http://localhost:5173`
-- **Nginx Proxied API**: `http://localhost:5173/api/campaigns`
-- **Backend API Direct**: `http://localhost:5001/api`
-- **Backend Health Check**: `http://localhost:5001/api/health`
+- **Nginx Proxied API Health**: `http://localhost:5173/api/health`
+- **Nginx Proxied Campaigns API**: `http://localhost:5173/api/campaigns`
 
 ---
 
@@ -99,7 +101,7 @@ docker compose up -d --build --wait
 ```bash
 cd client
 npm install
-npm run dev      # Starts Vite dev server on http://localhost:5173
+npm run dev      # Starts Vite dev server on http://localhost:5173 with /api proxying
 npm run build    # Builds production static assets
 ```
 
@@ -114,7 +116,7 @@ npm run dev      # Starts Express API server on http://localhost:5001
 
 ## ⚙️ Environment Configuration
 
-The repository uses a modular setup where each microservice maintains its own template:
+Standardized variable naming convention (`type_port`) is strictly enforced across all environment templates:
 
 ### Root Orchestration (`.env.example`)
 ```ini
@@ -122,10 +124,12 @@ POSTGRES_USER=postgres
 POSTGRES_PASSWORD=your_db_password_here
 POSTGRES_DB=campfund
 POSTGRES_PORT=5432
-PORT=5001
+
+SERVER_PORT=5001
 NODE_ENV=production
 DATABASE_URL=postgresql://postgres:your_db_password_here@postgres:5432/campfund
 JWT_SECRET=your_jwt_secret_key_here
+
 CLIENT_PORT=5173
 CLIENT_URL=http://localhost:5173
 VITE_API_URL=/api
@@ -140,7 +144,7 @@ VITE_API_URL=/api
 
 ### Backend (`server/.env.example`)
 ```ini
-PORT=5001
+SERVER_PORT=5001
 NODE_ENV=production
 DATABASE_URL=postgresql://postgres:your_db_password_here@postgres:5432/campfund
 JWT_SECRET=your_jwt_secret_key_here
@@ -196,11 +200,11 @@ GitHub Actions will connect to your server, pull the latest code, build Docker c
 Triggers on Pull Requests and pushes to `main`/`master`/`feature/*`:
 1. **Frontend CI:** Installs dependencies and verifies React/Vite production build on Node 24 LTS.
 2. **Backend CI:** Installs server dependencies and verifies Express syntax and imports.
-3. **Docker Integration:** Boots the entire Docker stack, asserts PostgreSQL health, and verifies HTTP responses for `/api/health` and Nginx reverse proxy routes.
+3. **Docker Integration:** Boots the entire Docker stack, asserts PostgreSQL health, and verifies HTTP responses for `/api/health` and Nginx reverse proxy routes on port `5173`.
 
 ### Continuous Deployment (`.github/workflows/deploy.yml`)
 Triggers automatically on pushes to `main`:
 1. SSHs into target VPS server (auto-cloning `$HOME/CampFund` if first deployment).
-2. Resets code to latest `main` commit and updates `.env`.
-3. Runs `docker compose up -d --build --wait` and prunes unused images.
-4. Verifies service health before marking deployment successful.
+2. Resets code to latest `main` commit and syncs `.env` from `.env.example`.
+3. Runs `docker compose down --remove-orphans` and `docker compose up -d --build --wait`.
+4. Asserts health check endpoints (`curl -f http://localhost:5173/api/health` and `curl -f http://localhost:5173/api/campaigns`) through Nginx before marking deployment successful.
