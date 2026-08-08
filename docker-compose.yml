@@ -31,9 +31,9 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - "${PORT}:5001"
+      - "${SERVER_PORT}:5001"
     environment:
-      PORT: ${PORT}
+      SERVER_PORT: ${SERVER_PORT}
       NODE_ENV: ${NODE_ENV}
       DATABASE_URL: ${DATABASE_URL}
       JWT_SECRET: ${JWT_SECRET}
@@ -54,10 +54,22 @@ services:
     restart: unless-stopped
     depends_on:
       - server
-    ports:
-      - "${CLIENT_PORT}:80"
     environment:
       VITE_API_URL: ${VITE_API_URL}
+    networks:
+      - campfund_network
+
+  nginx:
+    image: nginx:alpine
+    container_name: campfund_nginx
+    restart: unless-stopped
+    ports:
+      - "${CLIENT_PORT}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - client
+      - server
     networks:
       - campfund_network
 
