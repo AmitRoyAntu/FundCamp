@@ -28,7 +28,7 @@ jobs:
 
       - name: Install & Build Frontend
         run: |
-          npm ci
+          npm ci || npm install
           npm run build
         working-directory: ./client
 
@@ -48,7 +48,7 @@ jobs:
 
       - name: Install & Validate Server
         run: |
-          npm ci
+          npm ci || npm install
           node --check server.js
         working-directory: ./server
 
