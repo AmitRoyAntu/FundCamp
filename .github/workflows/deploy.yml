@@ -1,4 +1,4 @@
-name: CampFund Continuous Deployment
+name: CampFund CD
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   deploy:
-    name: Deploy to Ubuntu Production VPS
+    name: Deploy to Production VPS
     runs-on: ubuntu-latest
 
     steps:
@@ -22,26 +22,35 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.PORT || 22 }}
           script: |
-            echo "Starting CampFund Deployment..."
-            cd /var/www/campfund || cd ~/campfund || exit 1
+            TARGET_DIR="${{ secrets.WORK_DIR }}"
+            if [ -z "$TARGET_DIR" ]; then
+              TARGET_DIR="$HOME/CampFund"
+            fi
             
+            if [ ! -d "$TARGET_DIR" ]; then
+              echo "Target directory does not exist. Creating and cloning repository..."
+              mkdir -p "$TARGET_DIR"
+              git clone https://github.com/${{ github.repository }}.git "$TARGET_DIR"
+            fi
+            
+            cd "$TARGET_DIR" || exit 1
+            
+            echo "Updating source code..."
             git fetch origin main
             git reset --hard origin/main
-            echo "Ensuring production environment file..."
+            
             if [ ! -f .env ]; then
               cp .env.example .env
             fi
             
-            echo "Building and restarting Docker containers..."
+            echo "Rebuilding and deploying containers..."
             docker compose down --remove-orphans
-            docker compose up -d --build
+            docker compose up -d --build --wait
             
             echo "Cleaning up unused Docker images..."
             docker image prune -f
             
-            echo "Verifying service health..."
-            sleep 5
-            docker compose ps
-            curl -f http://localhost:5001/api/health || (echo "Health check failed!" && exit 1)
+            echo "Verifying deployment health..."
+            curl -f http://localhost:5001/api/health
             
-            echo "CampFund successfully deployed!"
+            echo "CampFund deployment complete!"
