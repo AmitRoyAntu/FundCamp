@@ -2,8 +2,8 @@ name: CampFund CD
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - 'v*'
 
 jobs:
   deploy:
@@ -35,9 +35,9 @@ jobs:
             
             cd "$TARGET_DIR" || exit 1
             
-            echo "Updating source code..."
-            git fetch origin main
-            git reset --hard origin/main
+            echo "Updating source code to tag ${{ github.ref_name }}..."
+            git fetch --all --tags
+            git checkout ${{ github.ref_name }}
             
             cp .env.example .env
             
