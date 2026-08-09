@@ -48,7 +48,7 @@ export const getCampaignById = async (req, res) => {
 
 export const createCampaign = async (req, res) => {
   try {
-    const { title, description, goalAmount } = req.body;
+    const { title, description, category, department, image, goalAmount } = req.body;
     const creatorId = req.user.id;
 
     if (!title || !description || goalAmount === undefined || goalAmount === null) {
@@ -71,6 +71,9 @@ export const createCampaign = async (req, res) => {
     const newCampaign = await Campaign.create({
       title,
       description,
+      category,
+      department,
+      image,
       goalAmount: numericGoal,
       creatorId
     });

@@ -112,6 +112,9 @@ export const campaignService = {
     const payload = {
       title: campaignData.title,
       description: campaignData.description,
+      category: campaignData.category,
+      department: campaignData.department || user?.department,
+      image: campaignData.image,
       goalAmount: Number(campaignData.goalAmount)
     };
 
@@ -120,8 +123,9 @@ export const campaignService = {
 
     return formatCampaign({
       ...created,
-      category: campaignData.category,
-      department: campaignData.department || user?.department,
+      category: created.category || campaignData.category,
+      department: created.department || campaignData.department || user?.department,
+      image: created.image || campaignData.image,
       creator_name: user?.fullName || user?.name || 'Anonymous Creator',
       creator_department: user?.department || 'Campus Department'
     });
@@ -136,6 +140,40 @@ export const campaignService = {
         c.creator.name.toLowerCase() === (user.fullName || user.name || '').toLowerCase() ||
         String(c.creator.id) === String(user.id)
     );
+  },
+
+  // GET /api/campaigns/:id/updates
+  async getCampaignUpdates(id) {
+    try {
+      const response = await apiClient.get(`/campaigns/${id}/updates`);
+      return response.data.data || [];
+    } catch (err) {
+      console.warn('Failed to fetch updates:', err);
+      return [];
+    }
+  },
+
+  // POST /api/campaigns/:id/updates
+  async createCampaignUpdate(id, { title, content }) {
+    const response = await apiClient.post(`/campaigns/${id}/updates`, { title, content });
+    return response.data.data;
+  },
+
+  // GET /api/campaigns/:id/comments
+  async getCampaignComments(id) {
+    try {
+      const response = await apiClient.get(`/campaigns/${id}/comments`);
+      return response.data.data || [];
+    } catch (err) {
+      console.warn('Failed to fetch comments:', err);
+      return [];
+    }
+  },
+
+  // POST /api/campaigns/:id/comments
+  async createCampaignComment(id, { content }) {
+    const response = await apiClient.post(`/campaigns/${id}/comments`, { content });
+    return response.data.data;
   }
 };
 
