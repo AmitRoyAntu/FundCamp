@@ -80,6 +80,24 @@ const inMemoryStore = {
       content: 'Thank you Sarah! Appreciate the support from CSE department.',
       created_at: new Date(Date.now() - 43200000).toISOString()
     }
+  ],
+  donations: [
+    {
+      id: 1,
+      campaign_id: 1,
+      donor_name: 'Sarah Jenkins',
+      amount: 1500,
+      payment_method: 'bKash',
+      created_at: new Date(Date.now() - 86400000).toISOString()
+    },
+    {
+      id: 2,
+      campaign_id: 1,
+      donor_name: 'Alumni Network Supporter',
+      amount: 1700,
+      payment_method: 'Card',
+      created_at: new Date(Date.now() - 43200000).toISOString()
+    }
   ]
 };
 
@@ -150,6 +168,17 @@ function handleInMemoryQuery(text, params) {
       };
     });
     return { rows: campaigns };
+  }
+
+  if (queryStr.includes('update campaigns') && queryStr.includes('amount_raised')) {
+    const amount = parseFloat(params[0]);
+    const id = parseInt(params[1], 10);
+    const campaign = inMemoryStore.campaigns.find(c => c.id === id);
+    if (campaign) {
+      campaign.amount_raised = (campaign.amount_raised || 0) + amount;
+      return { rows: [campaign] };
+    }
+    return { rows: [] };
   }
 
   if (queryStr.includes('insert into campaigns')) {
@@ -223,6 +252,28 @@ function handleInMemoryQuery(text, params) {
     };
     inMemoryStore.comments.push(newComment);
     return { rows: [newComment] };
+  }
+
+  // DONATIONS QUERIES
+  if (queryStr.includes('from donations') || queryStr.includes('from "donations"')) {
+    const campaignId = parseInt(params[0], 10);
+    const list = inMemoryStore.donations.filter(d => d.campaign_id === campaignId);
+    list.sort((a, b) => (b.amount || 0) - (a.amount || 0));
+    return { rows: list.slice(0, 10) };
+  }
+
+  if (queryStr.includes('insert into donations')) {
+    const [campaign_id, donor_name, amount, payment_method] = params;
+    const newDonation = {
+      id: inMemoryStore.donations.length + 1,
+      campaign_id: parseInt(campaign_id, 10),
+      donor_name: donor_name || 'Anonymous Backer',
+      amount: parseFloat(amount),
+      payment_method: payment_method || 'bKash',
+      created_at: new Date().toISOString()
+    };
+    inMemoryStore.donations.push(newDonation);
+    return { rows: [newDonation] };
   }
 
   return { rows: [] };

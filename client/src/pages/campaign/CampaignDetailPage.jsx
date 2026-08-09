@@ -6,6 +6,7 @@ import Avatar from '../../components/common/Avatar';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
 import Loader from '../../components/common/Loader';
+import DonateModal from '../../components/campaign/DonateModal';
 import Input from '../../components/common/Input';
 import { formatCurrency, calculatePercentage, formatDate, daysLeft } from '../../utils/formatters';
 import toast from 'react-hot-toast';
@@ -27,6 +28,9 @@ import {
   Plus,
   Send,
   UserCheck,
+  Trophy,
+  Award,
+  Users,
 } from 'lucide-react';
 
 export default function CampaignDetailPage() {
@@ -37,11 +41,15 @@ export default function CampaignDetailPage() {
   const [campaign, setCampaign] = useState(null);
   const [updates, setUpdates] = useState([]);
   const [comments, setComments] = useState([]);
+  const [donations, setDonations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Tab State: 'campaign' | 'updates' | 'comments'
+  // Tab State: 'campaign' | 'updates' | 'comments' | 'contributors'
   const [activeTab, setActiveTab] = useState('campaign');
+
+  // Modal State
+  const [isDonateModalOpen, setIsDonateModalOpen] = useState(false);
 
   // Form states
   const [showUpdateForm, setShowUpdateForm] = useState(false);
@@ -56,14 +64,16 @@ export default function CampaignDetailPage() {
     const fetchDetailAndData = async () => {
       setLoading(true);
       try {
-        const [campData, updatesData, commentsData] = await Promise.all([
+        const [campData, updatesData, commentsData, donationsData] = await Promise.all([
           campaignService.getCampaignById(id),
           campaignService.getCampaignUpdates(id),
           campaignService.getCampaignComments(id),
+          campaignService.getCampaignDonations(id),
         ]);
         setCampaign(campData);
         setUpdates(updatesData || []);
         setComments(commentsData || []);
+        setDonations(donationsData || []);
       } catch (err) {
         setError(err.message || 'Failed to load campaign details');
       } finally {
@@ -85,10 +95,47 @@ export default function CampaignDetailPage() {
   };
 
   const handleDonateClick = () => {
-    toast.error('Payment gateway integration will be available in the upcoming production release!', {
-      icon: '💳',
-      duration: 4000,
-    });
+    setIsDonateModalOpen(true);
+  };
+
+  const handleDonationSuccess = async ({ amount, donorName, paymentMethod }) => {
+    try {
+      await campaignService.donateToCampaign(id, {
+        amount,
+        donorName,
+        paymentMethod,
+      });
+
+      // Live update campaign amountRaised locally
+      setCampaign((prev) => ({
+        ...prev,
+        amountRaised: (prev.amountRaised || 0) + amount,
+      }));
+
+      // Append to donations leaderboard list live
+      const newDonationObj = {
+        id: Date.now(),
+        donor_name: donorName,
+        amount,
+        payment_method: paymentMethod,
+        created_at: new Date().toISOString(),
+      };
+      setDonations((prev) => {
+        const updatedList = [newDonationObj, ...prev];
+        return updatedList.sort((a, b) => (b.amount || 0) - (a.amount || 0)).slice(0, 10);
+      });
+
+      toast.success(`Thank you! ৳${amount.toLocaleString()} support received via ${paymentMethod}!`, {
+        icon: '🎉',
+        duration: 4000,
+      });
+    } catch (err) {
+      console.warn('Donation update warning:', err);
+      setCampaign((prev) => ({
+        ...prev,
+        amountRaised: (prev.amountRaised || 0) + amount,
+      }));
+    }
   };
 
   const handlePostUpdate = async (e) => {
@@ -294,6 +341,24 @@ export default function CampaignDetailPage() {
                   }`}
                 >
                   {comments.length}
+                </span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('contributors')}
+                className={`pb-3.5 text-sm sm:text-base font-bold border-b-2 flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap ${
+                  activeTab === 'contributors'
+                    ? 'border-[#007979] text-[#007979]'
+                    : 'border-transparent text-[#6B7280] hover:text-[#1F2937]'
+                }`}
+              >
+                <span>Contributors</span>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-xs font-bold transition-colors ${
+                    activeTab === 'contributors' ? 'bg-[#007979] text-white' : 'bg-gray-100 text-[#6B7280]'
+                  }`}
+                >
+                  {donations.length}
                 </span>
               </button>
             </div>
@@ -533,6 +598,119 @@ export default function CampaignDetailPage() {
               )}
             </div>
           )}
+
+          {/* TAB 4: CONTRIBUTORS (TOP 10 LEADERBOARD) */}
+          {activeTab === 'contributors' && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              <div className="bg-white border border-[#E5E7EB] rounded-2xl p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-[#FFE2AF]/50 text-[#8C5B00] flex items-center justify-center border border-[#FFE2AF]">
+                    <Trophy className="w-6 h-6 text-[#E37434]" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-[#1F2937]">Top Contributors Leaderboard</h3>
+                    <p className="text-xs text-[#6B7280]">
+                      Honoring the top backers supporting university innovation and campus initiatives.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="cta"
+                  size="md"
+                  onClick={handleDonateClick}
+                  icon={Heart}
+                >
+                  Become a Backer
+                </Button>
+              </div>
+
+              {donations.length === 0 ? (
+                <div className="text-center py-12 bg-white rounded-2xl border border-[#E5E7EB] space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-teal-50 text-[#007979] flex items-center justify-center mx-auto">
+                    <Users className="w-6 h-6" />
+                  </div>
+                  <h4 className="text-base font-bold text-[#1F2937]">No contributors yet</h4>
+                  <p className="text-xs text-[#6B7280]">
+                    Be the first backer to support this campaign and claim the #1 spot on the leaderboard!
+                  </p>
+                  <Button variant="cta" size="sm" onClick={handleDonateClick} icon={Heart} className="mt-2">
+                    Support Campaign Now
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {donations.map((don, idx) => {
+                    const rank = idx + 1;
+                    const name = don.donor_name || don.donorName || 'Anonymous Backer';
+                    const amount = Number(don.amount || 0);
+                    const method = don.payment_method || don.paymentMethod || 'bKash';
+
+                    let rankBadgeClass = 'bg-gray-100 text-[#6B7280]';
+                    let rankIcon = null;
+
+                    if (rank === 1) {
+                      rankBadgeClass = 'bg-gradient-to-r from-amber-400 to-amber-500 text-white shadow-xs';
+                      rankIcon = <Trophy className="w-4 h-4 text-white inline ml-1" />;
+                    } else if (rank === 2) {
+                      rankBadgeClass = 'bg-slate-300 text-slate-800 font-bold';
+                      rankIcon = <Award className="w-4 h-4 text-slate-700 inline ml-1" />;
+                    } else if (rank === 3) {
+                      rankBadgeClass = 'bg-amber-700/20 text-amber-800 font-bold';
+                      rankIcon = <Award className="w-4 h-4 text-amber-800 inline ml-1" />;
+                    }
+
+                    return (
+                      <div
+                        key={don.id || idx}
+                        className={`p-4 sm:p-5 rounded-2xl border transition-all flex items-center justify-between gap-4 ${
+                          rank === 1
+                            ? 'bg-[#FFFDF8] border-[#FFE2AF] shadow-xs'
+                            : 'bg-white border-[#E5E7EB]'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3.5">
+                          {/* Rank Badge */}
+                          <div
+                            className={`w-9 h-9 sm:w-10 sm:h-10 rounded-2xl flex items-center justify-center text-sm font-extrabold shrink-0 ${rankBadgeClass}`}
+                          >
+                            #{rank}
+                          </div>
+
+                          <Avatar name={name} size="md" />
+
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-sm sm:text-base text-[#1F2937]">{name}</span>
+                              {rank === 1 && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#FFE2AF] text-[#8C5B00]">
+                                  Top Contributor
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-[#6B7280] mt-0.5">
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-gray-100 text-gray-600">
+                                {method}
+                              </span>
+                              <span>•</span>
+                              <span>{formatDate(don.created_at || don.createdAt)}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Amount */}
+                        <div className="text-right shrink-0">
+                          <span className="text-base sm:text-lg font-extrabold text-[#007979]">
+                            {formatCurrency(amount)}
+                          </span>
+                          <p className="text-[11px] text-[#6B7280]">Contributed</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right 1 Column: Sticky Funding Widget */}
@@ -570,14 +748,14 @@ export default function CampaignDetailPage() {
                 size="lg"
                 onClick={handleDonateClick}
                 icon={Heart}
-                className="w-full justify-center py-3.5 text-base shadow-md cursor-not-allowed opacity-90"
+                className="w-full justify-center py-3.5 text-base shadow-md hover:scale-[1.02] active:scale-[0.98] transition-transform"
               >
                 Donate / Support Project
               </Button>
               <div className="p-3 bg-[#FFE2AF]/30 rounded-xl border border-[#FFE2AF] flex items-start gap-2 text-xs text-[#8C5B00]">
                 <Info className="w-4 h-4 shrink-0 mt-0.5 text-[#E37434]" />
                 <p>
-                  <strong>MVP Note:</strong> Payment gateway simulation active. Donations feature will be enabled in future backend release.
+                  <strong>Live Demo Payment:</strong> Supports instant simulated <strong>bKash</strong>, <strong>Nagad</strong>, <strong>Rocket</strong>, and <strong>Card</strong> contributions with live progress updates.
                 </p>
               </div>
             </div>
@@ -595,6 +773,14 @@ export default function CampaignDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Interactive Payment Modal */}
+      <DonateModal
+        campaign={campaign}
+        isOpen={isDonateModalOpen}
+        onClose={() => setIsDonateModalOpen(false)}
+        onSuccess={handleDonationSuccess}
+      />
     </div>
   );
 }

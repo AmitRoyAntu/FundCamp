@@ -18,7 +18,17 @@ CREATE TABLE IF NOT EXISTS campaigns (
     department VARCHAR(255) DEFAULT 'University Department',
     image TEXT,
     goal_amount NUMERIC(12, 2) NOT NULL CHECK (goal_amount > 0),
+    amount_raised NUMERIC(12, 2) DEFAULT 0.00 CHECK (amount_raised >= 0),
     creator_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS donations (
+    id SERIAL PRIMARY KEY,
+    campaign_id INTEGER NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+    donor_name VARCHAR(255) DEFAULT 'Anonymous Backer',
+    amount NUMERIC(12, 2) NOT NULL CHECK (amount > 0),
+    payment_method VARCHAR(50) DEFAULT 'bKash',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

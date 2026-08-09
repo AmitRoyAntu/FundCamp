@@ -6,10 +6,16 @@ VALUES
 ('Dr. Robert Chen', 'r.chen@university.edu', '$2a$10$89.Q9mJkOQpC.l3p2bN2e.fC.s6fM/S9v4aJg1A8k0P0o7XyK9A.O', 'Robotics Lab', 'Faculty')
 ON CONFLICT (email) DO NOTHING;
 
-INSERT INTO campaigns (title, description, category, department, image, goal_amount, creator_id)
+INSERT INTO campaigns (title, description, category, department, image, goal_amount, amount_raised, creator_id)
 VALUES 
-('Robotics Lab Equipment Upgrade', 'Funding for high-precision sensors and microcontrollers for the university robotics competition team.', 'Research', 'Robotics Lab', 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=1200', 5001.00, 2),
-('Student Emergency Medical Support Fund', 'Raising funds to support fellow student Sarah who needs urgent cardiac procedure assistance.', 'Medical', 'Computer Science', 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&q=80&w=1200', 12000.00, 1)
+('Robotics Lab Equipment Upgrade', 'Funding for high-precision sensors and microcontrollers for the university robotics competition team.', 'Research', 'Robotics Lab', 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=1200', 5001.00, 3200.00, 2),
+('Student Emergency Medical Support Fund', 'Raising funds to support fellow student Sarah who needs urgent cardiac procedure assistance.', 'Medical', 'Computer Science', 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&q=80&w=1200', 12000.00, 8500.00, 1)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO donations (campaign_id, donor_name, amount, payment_method)
+VALUES 
+(1, 'Sarah Jenkins', 1500.00, 'bKash'),
+(1, 'Alumni Network supporter', 1700.00, 'Card')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO campaign_updates (campaign_id, title, content)
