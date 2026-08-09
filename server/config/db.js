@@ -48,6 +48,38 @@ const inMemoryStore = {
       creator_id: 1,
       created_at: new Date().toISOString()
     }
+  ],
+  updates: [
+    {
+      id: 1,
+      campaign_id: 1,
+      title: 'Milestone 1 Reached: Microcontrollers Acquired!',
+      content: 'Thanks to initial backers, we have successfully ordered 10 high-precision STM32 microcontrollers and sensor breakout boards for team calibration.',
+      created_at: new Date(Date.now() - 86400000 * 2).toISOString()
+    },
+    {
+      id: 2,
+      campaign_id: 1,
+      title: 'Lab Testing Session Scheduled',
+      content: 'Our engineering team will be hosting an open demonstration next Tuesday in Lab 304 to showcase initial hardware telemetry.',
+      created_at: new Date(Date.now() - 86400000).toISOString()
+    }
+  ],
+  comments: [
+    {
+      id: 1,
+      campaign_id: 1,
+      user_id: 1,
+      content: 'So excited for the robotics team! Let me know if you need help with software integration.',
+      created_at: new Date(Date.now() - 86400000).toISOString()
+    },
+    {
+      id: 2,
+      campaign_id: 1,
+      user_id: 2,
+      content: 'Thank you Sarah! Appreciate the support from CSE department.',
+      created_at: new Date(Date.now() - 43200000).toISOString()
+    }
   ]
 };
 
@@ -121,17 +153,76 @@ function handleInMemoryQuery(text, params) {
   }
 
   if (queryStr.includes('insert into campaigns')) {
-    const [title, description, goal_amount, creator_id] = params;
+    const [title, description, category, department, image, goal_amount, creator_id] = params;
     const newCampaign = {
       id: inMemoryStore.campaigns.length + 1,
       title,
       description,
+      category: category || 'Education',
+      department: department || 'University Department',
+      image: image || null,
       goal_amount: parseFloat(goal_amount),
       creator_id: parseInt(creator_id, 10),
       created_at: new Date().toISOString()
     };
     inMemoryStore.campaigns.push(newCampaign);
     return { rows: [newCampaign] };
+  }
+
+  // UPDATES QUERIES
+  if (queryStr.includes('from campaign_updates') || queryStr.includes('from "campaign_updates"')) {
+    const campaignId = parseInt(params[0], 10);
+    const list = inMemoryStore.updates.filter(u => u.campaign_id === campaignId);
+    list.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    return { rows: list };
+  }
+
+  if (queryStr.includes('insert into campaign_updates')) {
+    const [campaign_id, title, content] = params;
+    const newUpdate = {
+      id: inMemoryStore.updates.length + 1,
+      campaign_id: parseInt(campaign_id, 10),
+      title,
+      content,
+      created_at: new Date().toISOString()
+    };
+    inMemoryStore.updates.push(newUpdate);
+    return { rows: [newUpdate] };
+  }
+
+  // COMMENTS QUERIES
+  if (queryStr.includes('from campaign_comments') || queryStr.includes('from "campaign_comments"')) {
+    const campaignId = parseInt(params[0], 10);
+    const list = inMemoryStore.comments
+      .filter(c => c.campaign_id === campaignId)
+      .map(c => {
+        const u = inMemoryStore.users.find(user => user.id === c.user_id);
+        return {
+          ...c,
+          user_name: u ? u.name : 'Campus Backer',
+          user_department: u ? u.department : 'University Department',
+          user_type: u ? u.user_type : 'Student'
+        };
+      });
+    list.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    return { rows: list };
+  }
+
+  if (queryStr.includes('insert into campaign_comments')) {
+    const [campaign_id, user_id, content] = params;
+    const user = inMemoryStore.users.find(u => u.id === parseInt(user_id, 10));
+    const newComment = {
+      id: inMemoryStore.comments.length + 1,
+      campaign_id: parseInt(campaign_id, 10),
+      user_id: parseInt(user_id, 10),
+      content,
+      created_at: new Date().toISOString(),
+      user_name: user ? user.name : 'Campus Backer',
+      user_department: user ? user.department : 'University Department',
+      user_type: user ? user.user_type : 'Student'
+    };
+    inMemoryStore.comments.push(newComment);
+    return { rows: [newComment] };
   }
 
   return { rows: [] };
