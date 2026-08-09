@@ -14,7 +14,7 @@ const apiClient = axios.create({
 // Request interceptor to attach bearer token from localStorage
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('campfund_token');
+    const token = localStorage.getItem('fundcamp_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

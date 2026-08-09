@@ -12,7 +12,7 @@ export const verifyToken = (req, res, next) => {
   }
 
   const token = authHeader.split(' ')[1];
-  const secret = process.env.JWT_SECRET || 'campfund_super_secret_jwt_key_2026';
+  const secret = process.env.JWT_SECRET || 'fundcamp_super_secret_jwt_key_2026';
 
   try {
     const decoded = jwt.verify(token, secret);

@@ -14,5 +14,5 @@ import app from './app.js';
 const PORT = parseInt(process.env.SERVER_PORT || process.env.PORT || '5001', 10) || 5001;
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`CampFund Server running on port ${PORT}`);
+  console.log(`FundCamp Server running on port ${PORT}`);
 });

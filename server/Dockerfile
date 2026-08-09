@@ -1,4 +1,4 @@
-# Dockerfile for CampFund Backend API
+# Dockerfile for FundCamp Backend API
 FROM node:22-alpine
 
 WORKDIR /app

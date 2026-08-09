@@ -1,4 +1,4 @@
-name: CampFund CI
+name: FundCamp CI
 
 on:
   push:

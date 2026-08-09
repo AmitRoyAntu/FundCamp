@@ -1,4 +1,4 @@
--- Database Initialization Script for CampFund
+-- Database Initialization Script for FundCamp
 
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,

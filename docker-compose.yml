@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: campfund_postgres
+    container_name: fundcamp_postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -14,7 +14,7 @@ services:
       - ./server/database/init.sql:/docker-entrypoint-initdb.d/1_init.sql
       - ./server/database/seed.sql:/docker-entrypoint-initdb.d/2_seed.sql
     networks:
-      - campfund_network
+      - fundcamp_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -25,7 +25,7 @@ services:
     build:
       context: ./server
       dockerfile: Dockerfile
-    container_name: campfund_server
+    container_name: fundcamp_server
     restart: unless-stopped
     depends_on:
       postgres:
@@ -39,7 +39,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       CLIENT_URL: ${CLIENT_URL}
     networks:
-      - campfund_network
+      - fundcamp_network
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:5001/api/health || exit 1"]
       interval: 15s
@@ -50,7 +50,7 @@ services:
     build:
       context: ./client
       dockerfile: Dockerfile
-    container_name: campfund_client
+    container_name: fundcamp_client
     restart: unless-stopped
     depends_on:
       - server
@@ -59,11 +59,11 @@ services:
     environment:
       VITE_API_URL: ${VITE_API_URL}
     networks:
-      - campfund_network
+      - fundcamp_network
 
   nginx:
     image: nginx:alpine
-    container_name: campfund_nginx
+    container_name: fundcamp_nginx
     restart: unless-stopped
     ports:
       - "${CLIENT_PORT}:80"
@@ -73,12 +73,12 @@ services:
       - client
       - server
     networks:
-      - campfund_network
+      - fundcamp_network
 
 volumes:
   postgres_data:
     driver: local
 
 networks:
-  campfund_network:
+  fundcamp_network:
     driver: bridge

@@ -52,7 +52,7 @@ export default function HomePage() {
           </h1>
 
           <p className="text-base sm:text-lg text-[#6B7280] leading-relaxed max-w-2xl mx-auto">
-            CampFund connects ambitious students, visionary faculty, and proud alumni to fund impactful research, scholarships, medical labs, and campus community projects.
+            FundCamp connects ambitious students, visionary faculty, and proud alumni to fund impactful research, scholarships, medical labs, and campus community projects.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
@@ -125,13 +125,13 @@ export default function HomePage() {
         )}
       </section>
 
-      {/* Why CampFund Section */}
+      {/* Why FundCamp Section */}
       <section className="bg-white rounded-3xl border border-[#E5E7EB] p-8 sm:p-12 space-y-8">
         <div className="text-center max-w-2xl mx-auto space-y-2">
-          <span className="text-xs font-bold text-[#007979] uppercase tracking-wider">Why CampFund</span>
+          <span className="text-xs font-bold text-[#007979] uppercase tracking-wider">Why FundCamp</span>
           <h2 className="text-2xl sm:text-3xl font-bold text-[#1F2937]">Built Specifically for Academia</h2>
           <p className="text-sm text-[#6B7280]">
-            Unlike generic crowdfunding platforms, CampFund verifies university affiliations and ensures transparency.
+            Unlike generic crowdfunding platforms, FundCamp verifies university affiliations and ensures transparency.
           </p>
         </div>
 

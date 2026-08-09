@@ -37,7 +37,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(data.email, data.password);
-      toast.success('Welcome back to CampFund!');
+      toast.success('Welcome back to FundCamp!');
       navigate(from, { replace: true });
     } catch (err) {
       toast.error(err.message || 'Login failed. Please check credentials.');
@@ -53,7 +53,7 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-[#007979] text-white mx-auto shadow-xs">
             <GraduationCap className="w-6 h-6" />
           </div>
-          <h1 className="text-2xl font-bold text-[#1F2937]">Sign In to CampFund</h1>
+          <h1 className="text-2xl font-bold text-[#1F2937]">Sign In to FundCamp</h1>
           <p className="text-sm text-[#6B7280]">Access your university crowdfunding workspace.</p>
         </div>
 

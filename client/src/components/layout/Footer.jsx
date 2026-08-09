@@ -14,7 +14,7 @@ export default function Footer() {
                 <GraduationCap className="w-4 h-4" />
               </div>
               <span className="text-xl font-bold text-[#007979]">
-                Camp<span className="text-[#E37434]">Fund</span>
+                Fund<span className="text-[#E37434]">Camp</span>
               </span>
             </Link>
             <p className="text-xs text-[#6B7280] leading-relaxed">
@@ -62,7 +62,7 @@ export default function Footer() {
 
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-[#E5E7EB] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
-          <p>© {new Date().getFullYear()} CampFund. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} FundCamp. All rights reserved.</p>
           <p className="flex items-center gap-1">
             Built with <Heart className="w-3.5 h-3.5 text-[#DC2626] fill-current inline" /> for students, faculty & alumni.
           </p>

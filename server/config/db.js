@@ -2,7 +2,7 @@ import pg from 'pg';
 
 const { Pool } = pg;
 
-const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:password@postgres:5432/campfund';
+const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:password@postgres:5432/fundcamp';
 
 export const pool = new Pool({
   connectionString,

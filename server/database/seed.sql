@@ -1,4 +1,4 @@
--- Seed Script for CampFund
+-- Seed Script for FundCamp
 
 INSERT INTO users (name, email, password, department, user_type)
 VALUES 

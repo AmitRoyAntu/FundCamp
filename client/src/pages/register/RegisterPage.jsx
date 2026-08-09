@@ -46,7 +46,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await registerAuth(data);
-      toast.success('Registration successful! Welcome to CampFund.');
+      toast.success('Registration successful! Welcome to FundCamp.');
       navigate('/dashboard');
     } catch (err) {
       toast.error(err.message || 'Registration failed. Please check your details.');
@@ -62,7 +62,7 @@ export default function RegisterPage() {
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-[#007979] text-white mx-auto shadow-xs">
             <GraduationCap className="w-6 h-6" />
           </div>
-          <h1 className="text-2xl font-bold text-[#1F2937]">Create Your CampFund Account</h1>
+          <h1 className="text-2xl font-bold text-[#1F2937]">Create Your FundCamp Account</h1>
           <p className="text-sm text-[#6B7280]">
             Join students, faculty, and alumni supporting university innovation.
           </p>

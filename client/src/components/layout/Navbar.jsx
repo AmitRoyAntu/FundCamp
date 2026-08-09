@@ -45,7 +45,7 @@ export default function Navbar() {
               <GraduationCap className="w-5 h-5" />
             </div>
             <span className="text-xl font-bold tracking-tight text-[#007979]">
-              Camp<span className="text-[#E37434]">Fund</span>
+              Fund<span className="text-[#E37434]">Camp</span>
             </span>
           </Link>
 

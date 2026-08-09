@@ -1,7 +1,7 @@
 import apiClient from './apiClient';
 
-const CURRENT_USER_KEY = 'campfund_current_user';
-const TOKEN_KEY = 'campfund_token';
+const CURRENT_USER_KEY = 'fundcamp_current_user';
+const TOKEN_KEY = 'fundcamp_token';
 
 const formatUserData = (u) => {
   if (!u) return null;

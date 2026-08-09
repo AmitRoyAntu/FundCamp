@@ -1,4 +1,4 @@
-# Multi-stage Dockerfile for CampFund React Frontend
+# Multi-stage Dockerfile for FundCamp React Frontend
 FROM node:22-alpine AS builder
 
 WORKDIR /app

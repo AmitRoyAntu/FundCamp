@@ -1,5 +1,5 @@
 {
-  "name": "CampFund",
+  "name": "FundCamp",
   "description": "University crowdfunding platform where students, faculty, and alumni create and support fundraising campaigns.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

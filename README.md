@@ -1,6 +1,6 @@
-# CampFund — University Crowdfunding Platform
+# FundCamp — University Crowdfunding Platform
 
-CampFund is a production-ready university crowdfunding platform where students, faculty, and alumni create and support fundraising campaigns.
+FundCamp is a production-ready university crowdfunding platform where students, faculty, and alumni create and support fundraising campaigns.
 
 The project is architected as a modular full-stack monorepo with independent `client` (React + Vite + Nginx), `server` (Express REST API + PostgreSQL), and a dedicated root `nginx` reverse proxy microservice.
 
@@ -9,7 +9,7 @@ The project is architected as a modular full-stack monorepo with independent `cl
 ## 📁 Monorepo Structure
 
 ```text
-campfund/
+fundcamp/
 ├── client/                     # React Frontend Application (Internal Port 80)
 │   ├── src/                    # Components, pages, hooks, contexts, routes
 │   ├── public/                 # Static assets
@@ -53,7 +53,7 @@ campfund/
                               │
                               ▼ Public Port (CLIENT_PORT: 5173 / 80)
                      ┌─────────────────┐
-                     │  root NGINX     │ (campfund_nginx)
+                     │  root NGINX     │ (fundcamp_nginx)
                      │  Reverse Proxy  │
                      └────────┬────────┘
                               │
@@ -61,17 +61,17 @@ campfund/
              │ Private Network                 │ Private Network
              ▼ (http://client:80)              ▼ (http://server:5001)
       ┌──────────────┐                  ┌──────────────┐
-      │ client NGINX │                  │ Express API  │ (campfund_server)
+      │ client NGINX │                  │ Express API  │ (fundcamp_server)
       │ React SPA    │                  └──────┬───────┘
       └──────────────┘                         │ Private Network (postgres:5432)
-       (campfund_client)                       ▼
+       (fundcamp_client)                       ▼
                                            PostgreSQL
-                                       (campfund_postgres)
+                                       (fundcamp_postgres)
 ```
 
 ### Security Isolation Highlights:
 - **Single Public Entrypoint**: Only the `nginx` reverse proxy container exposes public ports (`CLIENT_PORT`: `5173` or `80`).
-- **Private Internal Network**: The `server` (Express API) and `postgres` (Database) containers operate strictly within the private `campfund_network` bridge and are not exposed directly to the public internet.
+- **Private Internal Network**: The `server` (Express API) and `postgres` (Database) containers operate strictly within the private `fundcamp_network` bridge and are not exposed directly to the public internet.
 
 ---
 
@@ -81,8 +81,8 @@ To spin up the complete production stack (PostgreSQL + Express Backend + React F
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-username/campfund.git
-cd campfund
+git clone https://github.com/your-username/fundcamp.git
+cd fundcamp
 
 # 2. Launch Docker Compose with build & wait
 docker compose up -d --build --wait
@@ -122,12 +122,12 @@ Standardized variable naming convention (`type_port`) is strictly enforced acros
 ```ini
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=your_db_password_here
-POSTGRES_DB=campfund
+POSTGRES_DB=fundcamp
 POSTGRES_PORT=5432
 
 SERVER_PORT=5001
 NODE_ENV=production
-DATABASE_URL=postgresql://postgres:your_db_password_here@postgres:5432/campfund
+DATABASE_URL=postgresql://postgres:your_db_password_here@postgres:5432/fundcamp
 JWT_SECRET=your_jwt_secret_key_here
 
 CLIENT_PORT=5173
@@ -146,7 +146,7 @@ VITE_API_URL=/api
 ```ini
 SERVER_PORT=5001
 NODE_ENV=production
-DATABASE_URL=postgresql://postgres:your_db_password_here@postgres:5432/campfund
+DATABASE_URL=postgresql://postgres:your_db_password_here@postgres:5432/fundcamp
 JWT_SECRET=your_jwt_secret_key_here
 CLIENT_URL=http://localhost:5173
 ```
@@ -155,7 +155,7 @@ CLIENT_URL=http://localhost:5173
 
 ## 🌐 Deploying to Production (Ubuntu VM / VPS)
 
-Follow these steps to deploy CampFund on an Ubuntu Linux server:
+Follow these steps to deploy FundCamp on an Ubuntu Linux server:
 
 ### Step 1: Install Docker & Docker Compose on VPS
 Connect to your server via SSH and install Docker:
@@ -181,7 +181,7 @@ In your GitHub repo, go to **Settings > Secrets and variables > Actions** and ad
 - `USERNAME`: SSH login username (e.g. `ubuntu` or `root`)
 - `SSH_KEY`: Your private SSH key content
 - `PORT`: SSH port (default: `22`)
-- `WORK_DIR`: *(Optional)* Custom directory on VPS (default: `$HOME/CampFund`)
+- `WORK_DIR`: *(Optional)* Custom directory on VPS (default: `$HOME/FundCamp`)
 
 ### Step 3: Automated Deployment
 Push any commit to the `main` branch:
@@ -204,7 +204,7 @@ Triggers on Pull Requests and pushes to `main`/`master`/`feature/*`:
 
 ### Continuous Deployment (`.github/workflows/deploy.yml`)
 Triggers automatically on pushes to `main`:
-1. SSHs into target VPS server (auto-cloning `$HOME/CampFund` if first deployment).
+1. SSHs into target VPS server (auto-cloning `$HOME/FundCamp` if first deployment).
 2. Resets code to latest `main` commit and syncs `.env` from `.env.example`.
 3. Runs `docker compose down --remove-orphans` and `docker compose up -d --build --wait`.
 4. Asserts health check endpoints (`curl -f http://localhost:5173/api/health` and `curl -f http://localhost:5173/api/campaigns`) through Nginx before marking deployment successful.

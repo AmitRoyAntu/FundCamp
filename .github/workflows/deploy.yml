@@ -1,4 +1,4 @@
-name: CampFund CD
+name: FundCamp CD
 
 on:
   push:
@@ -24,7 +24,7 @@ jobs:
           script: |
             TARGET_DIR="${{ secrets.WORK_DIR }}"
             if [ -z "$TARGET_DIR" ]; then
-              TARGET_DIR="$HOME/CampFund"
+              TARGET_DIR="$HOME/FundCamp"
             fi
             
             if [ ! -d "$TARGET_DIR" ]; then
@@ -52,4 +52,4 @@ jobs:
             curl -f http://localhost:5173/api/health
             curl -f http://localhost:5173/api/campaigns
             
-            echo "CampFund deployment complete!"
+            echo "FundCamp deployment complete!"

@@ -236,7 +236,7 @@ export default function CampaignDetailPage() {
             <div className="pt-4 border-t border-[#E5E7EB] space-y-3 text-xs text-[#6B7280]">
               <div className="flex items-center gap-2 font-semibold text-[#1F2937]">
                 <ShieldCheck className="w-4 h-4 text-[#16A34A]" />
-                <span>Verified CampFund Campaign</span>
+                <span>Verified FundCamp Campaign</span>
               </div>
               <p>
                 All project funds are disbursed directly to university departmental research and student activity accounts upon milestone verification.
