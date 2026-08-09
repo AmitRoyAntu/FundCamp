@@ -5,8 +5,7 @@ export const formatCurrency = (amount) => {
 
 export const calculatePercentage = (raised, goal) => {
   if (!goal || goal <= 0) return 0;
-  const percentage = Math.round((raised / goal) * 100);
-  return Math.min(percentage, 100);
+  return Math.round((raised / goal) * 100);
 };
 
 export const formatDate = (dateString) => {

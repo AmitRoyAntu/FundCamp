@@ -92,3 +92,48 @@ export const createCampaign = async (req, res) => {
     });
   }
 };
+
+export const processDonation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { amount, donorName, paymentMethod } = req.body;
+
+    const numericAmount = parseFloat(amount);
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        error: 'Donation amount must be greater than zero'
+      });
+    }
+
+    const campaign = await Campaign.findById(id);
+    if (!campaign) {
+      return res.status(404).json({
+        success: false,
+        message: 'Campaign not found',
+        error: `No campaign found with id ${id}`
+      });
+    }
+
+    const updatedCampaign = await Campaign.donate({
+      id,
+      amount: numericAmount,
+      donorName,
+      paymentMethod
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Donation processed successfully',
+      data: updatedCampaign || campaign
+    });
+  } catch (error) {
+    console.error('Process Donation Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
