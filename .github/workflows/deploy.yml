@@ -43,10 +43,11 @@ jobs:
             
             echo "Rebuilding and deploying containers..."
             docker compose down --remove-orphans
-            docker compose up -d --build --wait
+            docker compose build --no-cache
+            docker compose up -d --force-recreate --wait
             
             echo "Cleaning up unused Docker images..."
-            docker image prune -f
+            docker image prune -af
             
             echo "Verifying deployment health..."
             curl -f http://localhost:5173/api/health
