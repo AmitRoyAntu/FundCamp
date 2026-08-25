@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS campaigns (
 CREATE TABLE IF NOT EXISTS donations (
     id SERIAL PRIMARY KEY,
     campaign_id INTEGER NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     donor_name VARCHAR(255) DEFAULT 'Anonymous Backer',
     amount NUMERIC(12, 2) NOT NULL CHECK (amount > 0),
     payment_method VARCHAR(50) DEFAULT 'bKash',

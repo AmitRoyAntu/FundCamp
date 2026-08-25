@@ -98,6 +98,7 @@ export const processDonation = async (req, res) => {
   try {
     const { id } = req.params;
     const { amount, donorName, paymentMethod } = req.body;
+    const userId = req.user?.id || null;
 
     const numericAmount = parseFloat(amount);
     if (isNaN(numericAmount) || numericAmount <= 0) {
@@ -117,10 +118,20 @@ export const processDonation = async (req, res) => {
       });
     }
 
+    // Rule: Creators cannot donate to their own campaigns
+    if (userId && String(campaign.creator_id) === String(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Forbidden: Creators cannot donate to their own campaign',
+        error: 'You cannot donate to your own campaign'
+      });
+    }
+
     const updatedCampaign = await Campaign.donate({
       id,
+      userId,
       amount: numericAmount,
-      donorName,
+      donorName: donorName || req.user?.name || 'Anonymous Backer',
       paymentMethod
     });
 

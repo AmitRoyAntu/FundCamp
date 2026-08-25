@@ -12,10 +12,13 @@ VALUES
 ('Student Emergency Medical Support Fund', 'Raising funds to support fellow student Sarah who needs urgent cardiac procedure assistance.', 'Medical', 'Computer Science', 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&q=80&w=1200', 12000.00, 8500.00, ARRAY['MedicalEmergency', 'StudentAid', 'Urgent'], 1)
 ON CONFLICT DO NOTHING;
 
-INSERT INTO donations (campaign_id, donor_name, amount, payment_method)
+INSERT INTO donations (campaign_id, user_id, donor_name, amount, payment_method, created_at)
 VALUES 
-(1, 'Sarah Jenkins', 1500.00, 'bKash'),
-(1, 'Alumni Network supporter', 1700.00, 'Card')
+(1, 1, 'Sarah Jenkins', 1500.00, 'bKash', CURRENT_TIMESTAMP - INTERVAL '1 day'),
+(1, NULL, 'Alumni Network supporter', 1700.00, 'Card', CURRENT_TIMESTAMP - INTERVAL '12 hours'),
+(2, 2, 'Dr. Robert Chen', 3000.00, 'Card', CURRENT_TIMESTAMP - INTERVAL '3 days'),
+(2, NULL, 'CSE Alumni Association', 3500.00, 'bKash', CURRENT_TIMESTAMP - INTERVAL '2 days'),
+(2, NULL, 'University Student Welfare Club', 2000.00, 'Nagad', CURRENT_TIMESTAMP - INTERVAL '1 day')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO campaign_updates (campaign_id, title, content)

@@ -47,9 +47,9 @@ export const Campaign = {
   },
 
   donate: async (arg1, arg2) => {
-    let id, amount, donorName, paymentMethod;
+    let id, amount, donorName, paymentMethod, userId;
     if (typeof arg1 === 'object' && arg1 !== null) {
-      ({ id, amount, donorName, paymentMethod } = arg1);
+      ({ id, amount, donorName, paymentMethod, userId } = arg1);
     } else {
       id = arg1;
       amount = arg2;
@@ -65,10 +65,10 @@ export const Campaign = {
 
     // Record donation transaction log
     const sqlDonation = `
-      INSERT INTO donations (campaign_id, donor_name, amount, payment_method)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO donations (campaign_id, user_id, donor_name, amount, payment_method)
+      VALUES ($1, $2, $3, $4, $5)
     `;
-    await query(sqlDonation, [id, donorName || 'Anonymous Backer', amount, paymentMethod || 'bKash']);
+    await query(sqlDonation, [id, userId || null, donorName || 'Anonymous Backer', amount, paymentMethod || 'bKash']);
 
     return result.rows[0];
   }
