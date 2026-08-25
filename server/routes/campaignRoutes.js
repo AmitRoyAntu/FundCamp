@@ -2,7 +2,8 @@ import express from 'express';
 import { getAllCampaigns, getCampaignById, createCampaign } from '../controllers/campaignController.js';
 import { getUpdatesByCampaign, createUpdate } from '../controllers/updateController.js';
 import { getCommentsByCampaign, createComment } from '../controllers/commentController.js';
-import { verifyToken } from '../middleware/authMiddleware.js';
+import { getDonationsByCampaign, createDonation } from '../controllers/donationController.js';
+import { verifyToken, optionalVerifyToken } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -18,4 +19,9 @@ router.post('/campaigns/:id/updates', verifyToken, createUpdate);
 router.get('/campaigns/:id/comments', getCommentsByCampaign);
 router.post('/campaigns/:id/comments', verifyToken, createComment);
 
+// Campaign Donations routes
+router.get('/campaigns/:id/donations', getDonationsByCampaign);
+router.post('/campaigns/:id/donate', optionalVerifyToken, createDonation);
+
 export default router;
+

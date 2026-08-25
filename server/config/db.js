@@ -16,7 +16,7 @@ const inMemoryStore = {
       id: 1,
       name: 'Sarah Jenkins',
       email: 'sarah.j@university.edu',
-      password: '$2a$10$89.Q9mJkOQpC.l3p2bN2e.fC.s6fM/S9v4aJg1A8k0P0o7XyK9A.O', // 12345678
+      password: '$2b$10$44CiuM.wN1E3ENkFx/zlW.ZX3JgNhYtkQNs1w5.1A6TzyFq0yOIbq', // 12345678
       department: 'Computer Science',
       user_type: 'Student',
       created_at: new Date().toISOString()
@@ -25,7 +25,7 @@ const inMemoryStore = {
       id: 2,
       name: 'Dr. Robert Chen',
       email: 'r.chen@university.edu',
-      password: '$2a$10$89.Q9mJkOQpC.l3p2bN2e.fC.s6fM/S9v4aJg1A8k0P0o7XyK9A.O', // 12345678
+      password: '$2b$10$44CiuM.wN1E3ENkFx/zlW.ZX3JgNhYtkQNs1w5.1A6TzyFq0yOIbq', // 12345678
       department: 'Robotics Lab',
       user_type: 'Faculty',
       created_at: new Date().toISOString()
@@ -39,6 +39,7 @@ const inMemoryStore = {
       category: 'Research',
       tags: ['Robotics', 'Hardware', 'Microcontrollers', 'Competition'],
       goal_amount: 5001,
+      amount_raised: 3200,
       creator_id: 2,
       created_at: new Date().toISOString()
     },
@@ -49,6 +50,7 @@ const inMemoryStore = {
       category: 'Medical',
       tags: ['MedicalEmergency', 'StudentAid', 'Urgent'],
       goal_amount: 12000,
+      amount_raised: 8500,
       creator_id: 1,
       created_at: new Date().toISOString()
     }
@@ -82,6 +84,24 @@ const inMemoryStore = {
       campaign_id: 1,
       user_id: 2,
       content: 'Thank you Sarah! Appreciate the support from CSE department.',
+      created_at: new Date(Date.now() - 43200000).toISOString()
+    }
+  ],
+  donations: [
+    {
+      id: 1,
+      campaign_id: 1,
+      donor_name: 'Sarah Jenkins',
+      amount: 1500,
+      payment_method: 'bKash',
+      created_at: new Date(Date.now() - 86400000).toISOString()
+    },
+    {
+      id: 2,
+      campaign_id: 1,
+      donor_name: 'Alumni Network Supporter',
+      amount: 1700,
+      payment_method: 'Card',
       created_at: new Date(Date.now() - 43200000).toISOString()
     }
   ]
@@ -227,6 +247,39 @@ function handleInMemoryQuery(text, params) {
     };
     inMemoryStore.comments.push(newComment);
     return { rows: [newComment] };
+  }
+
+  if (queryStr.includes('update campaigns') && queryStr.includes('amount_raised')) {
+    const amount = parseFloat(params[0]);
+    const id = parseInt(params[1], 10);
+    const campaign = inMemoryStore.campaigns.find(c => c.id === id);
+    if (campaign) {
+      campaign.amount_raised = (campaign.amount_raised || 0) + amount;
+      return { rows: [campaign] };
+    }
+    return { rows: [] };
+  }
+
+  // DONATIONS QUERIES
+  if (queryStr.includes('from donations') || queryStr.includes('from "donations"')) {
+    const campaignId = parseInt(params[0], 10);
+    const list = inMemoryStore.donations.filter(d => d.campaign_id === campaignId);
+    list.sort((a, b) => (b.amount || 0) - (a.amount || 0));
+    return { rows: list.slice(0, 10) };
+  }
+
+  if (queryStr.includes('insert into donations')) {
+    const [campaign_id, donor_name, amount, payment_method] = params;
+    const newDonation = {
+      id: inMemoryStore.donations.length + 1,
+      campaign_id: parseInt(campaign_id, 10),
+      donor_name: donor_name || 'Anonymous Backer',
+      amount: parseFloat(amount),
+      payment_method: payment_method || 'bKash',
+      created_at: new Date().toISOString()
+    };
+    inMemoryStore.donations.push(newDonation);
+    return { rows: [newDonation] };
   }
 
   return { rows: [] };

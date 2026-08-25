@@ -201,6 +201,27 @@ export const campaignService = {
   async createCampaignComment(id, { content }) {
     const response = await apiClient.post(`/campaigns/${id}/comments`, { content });
     return response.data.data;
+  },
+
+  // POST /api/campaigns/:id/donate
+  async donateToCampaign(id, { amount, donorName, paymentMethod }) {
+    const response = await apiClient.post(`/campaigns/${id}/donate`, {
+      amount,
+      donorName,
+      paymentMethod
+    });
+    return response.data.data;
+  },
+
+  // GET /api/campaigns/:id/donations
+  async getCampaignDonations(id) {
+    try {
+      const response = await apiClient.get(`/campaigns/${id}/donations`);
+      return response.data.data || [];
+    } catch (err) {
+      console.warn('Failed to fetch donations:', err);
+      return [];
+    }
   }
 };
 

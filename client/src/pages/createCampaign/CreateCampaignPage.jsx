@@ -29,7 +29,7 @@ export default function CreateCampaignPage() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [tags, setTags] = useState(['Robotics', 'Hardware']);
+  const [tags, setTags] = useState([]);
   const [customTagInput, setCustomTagInput] = useState('');
 
   // Preset recommended high-res Unsplash images for quick click selection

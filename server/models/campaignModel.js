@@ -44,5 +44,16 @@ export const Campaign = {
       creatorId
     ]);
     return result.rows[0];
+  },
+
+  donate: async (id, amount) => {
+    const sql = `
+      UPDATE campaigns
+      SET amount_raised = COALESCE(amount_raised, 0) + $1
+      WHERE id = $2
+      RETURNING *
+    `;
+    const result = await query(sql, [amount, id]);
+    return result.rows[0];
   }
 };
