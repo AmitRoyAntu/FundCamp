@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { campaignService } from '../../services/campaignService';
@@ -23,22 +23,57 @@ import {
   Plus,
   X,
   Hash,
+  Upload,
+  Link as LinkIcon,
+  Check,
+  RefreshCw,
 } from 'lucide-react';
+
+const STOCK_PRESETS = [
+  {
+    category: 'Technology & Robotics',
+    label: 'Robotics & Hardware',
+    url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=1200',
+  },
+  {
+    category: 'Medical & Healthcare',
+    label: 'Medical & Biology Lab',
+    url: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&q=80&w=1200',
+  },
+  {
+    category: 'Campus & Education',
+    label: 'Campus & Student Life',
+    url: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=1200',
+  },
+  {
+    category: 'Sustainability',
+    label: 'Ecology & Clean Tech',
+    url: 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&q=80&w=1200',
+  },
+  {
+    category: 'Engineering',
+    label: 'Electronics & AI Lab',
+    url: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&q=80&w=1200',
+  },
+  {
+    category: 'Community & Aid',
+    label: 'Healthcare Outreach',
+    url: 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&q=80&w=1200',
+  },
+];
 
 export default function CreateCampaignPage() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
+  const fileInputRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [tags, setTags] = useState([]);
   const [customTagInput, setCustomTagInput] = useState('');
 
-  // Preset recommended high-res Unsplash images for quick click selection
-  const presetImages = [
-    { label: 'Technology / Research', url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=1200' },
-    { label: 'Medical / Biology Lab', url: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&q=80&w=1200' },
-    { label: 'Campus / Student Life', url: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=1200' },
-    { label: 'Sustainability / Ecology', url: 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&q=80&w=1200' },
-  ];
+  // Image selection state: 'upload' | 'stock' | 'url'
+  const [imageMode, setImageMode] = useState('stock');
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState('');
 
   const {
     register,
@@ -53,13 +88,84 @@ export default function CreateCampaignPage() {
       department: currentUser?.department || 'Computer Science & Engineering',
       goalAmount: '',
       description: '',
-      image: presetImages[0].url,
+      image: STOCK_PRESETS[0].url,
     },
   });
 
   const selectedImage = watch('image');
   const selectedCategory = watch('category') || 'Education';
   const categorySuggestions = SUGGESTED_TAGS_BY_CATEGORY[selectedCategory] || [];
+
+  const processImageFile = (file) => {
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload a valid image file (PNG, JPG, JPEG, WebP).');
+      return;
+    }
+
+    if (file.size > 15 * 1024 * 1024) {
+      toast.error('Image size must be less than 15MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const rawDataUrl = e.target.result;
+      const img = new Image();
+      img.onload = () => {
+        // Target dimensions for high-res web banner
+        const MAX_WIDTH = 1280;
+        const MAX_HEIGHT = 960;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > MAX_WIDTH || height > MAX_HEIGHT) {
+          if (width / height > MAX_WIDTH / MAX_HEIGHT) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+          } else {
+            width = Math.round((width * MAX_HEIGHT) / height);
+            height = MAX_HEIGHT;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+        const compressedDataUrl = canvas.toDataURL(mimeType, 0.88);
+
+        setValue('image', compressedDataUrl);
+        setUploadedFileName(file.name);
+        toast.success(`Image "${file.name}" processed and attached!`);
+      };
+      img.onerror = () => {
+        setValue('image', rawDataUrl);
+        setUploadedFileName(file.name);
+      };
+      img.src = rawDataUrl;
+    };
+    reader.onerror = () => {
+      toast.error('Failed to read image file.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleFileInputChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) processImageFile(file);
+  };
+
+  const handleFileDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processImageFile(file);
+  };
 
   const handleAddTag = (newTag) => {
     const cleanTag = newTag.replace(/^#/, '').trim();
@@ -280,52 +386,198 @@ export default function CreateCampaignPage() {
             })}
           />
 
-          {/* Image Selection */}
-          <div className="space-y-3">
-            <label className="block text-sm font-medium text-[#1F2937]">
-              Campaign Image URL
-            </label>
-            <Input
-              placeholder="https://images.unsplash.com/photo-..."
-              icon={ImageIcon}
-              error={errors.image?.message}
-              register={register('image', {
-                required: 'Image URL is required',
-              })}
-            />
+          {/* Image Selection & Upload Section */}
+          <div className="space-y-4 p-5 rounded-2xl bg-[#FFFDF8] border border-[#E5E7EB]">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <label className="block text-sm font-bold text-[#1F2937] flex items-center gap-2">
+                  <ImageIcon className="w-4 h-4 text-[#007979]" />
+                  Campaign Cover Image
+                </label>
+                <p className="text-xs text-[#6B7280]">
+                  High-quality visuals dramatically increase backer engagement and trust.
+                </p>
+              </div>
 
-            {/* Preset Recommendation Chips */}
-            <div className="space-y-2 pt-1">
-              <p className="text-xs text-[#6B7280]">Or pick a recommended stock image:</p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {presetImages.map((preset, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => setValue('image', preset.url)}
-                    className={`p-2 rounded-xl border text-xs font-medium text-left truncate transition-all cursor-pointer ${
-                      selectedImage === preset.url
-                        ? 'border-[#007979] bg-[#007979]/10 text-[#007979] font-semibold ring-2 ring-[#007979]'
-                        : 'border-[#E5E7EB] hover:bg-gray-50 text-[#6B7280]'
-                    }`}
-                  >
-                    {preset.label}
-                  </button>
-                ))}
+              {/* Mode Switcher Tabs */}
+              <div className="inline-flex p-1 bg-gray-100 rounded-xl text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setImageMode('upload')}
+                  className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
+                    imageMode === 'upload'
+                      ? 'bg-white text-[#007979] shadow-xs'
+                      : 'text-[#6B7280] hover:text-[#1F2937]'
+                  }`}
+                >
+                  <Upload className="w-3.5 h-3.5" /> Upload File
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setImageMode('stock')}
+                  className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
+                    imageMode === 'stock'
+                      ? 'bg-white text-[#007979] shadow-xs'
+                      : 'text-[#6B7280] hover:text-[#1F2937]'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-[#E37434]" /> Recommended Stock
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setImageMode('url')}
+                  className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
+                    imageMode === 'url'
+                      ? 'bg-white text-[#007979] shadow-xs'
+                      : 'text-[#6B7280] hover:text-[#1F2937]'
+                  }`}
+                >
+                  <LinkIcon className="w-3.5 h-3.5" /> Image URL
+                </button>
               </div>
             </div>
 
-            {/* Selected Image Preview */}
-            {selectedImage && (
-              <div className="w-full h-40 rounded-2xl overflow-hidden border border-[#E5E7EB] bg-gray-100 mt-2">
-                <img
-                  src={selectedImage}
-                  alt="Preview"
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.currentTarget.src = presetImages[0].url;
+            {/* TAB 1: FILE UPLOAD DROPZONE */}
+            {imageMode === 'upload' && (
+              <div className="space-y-3">
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDragging(true);
                   }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={handleFileDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all ${
+                    isDragging
+                      ? 'border-[#007979] bg-[#007979]/5 scale-[1.01]'
+                      : 'border-gray-300 bg-white hover:border-[#007979] hover:bg-gray-50'
+                  }`}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/webp"
+                    onChange={handleFileInputChange}
+                    className="hidden"
+                  />
+                  <div className="flex flex-col items-center justify-center space-y-2">
+                    <div className="w-12 h-12 rounded-2xl bg-[#007979]/10 text-[#007979] flex items-center justify-center">
+                      <Upload className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-[#1F2937]">
+                        Click to browse or drag & drop your project photo
+                      </p>
+                      <p className="text-xs text-[#6B7280] mt-0.5">
+                        Supports PNG, JPG, JPEG, WebP (Max 5MB)
+                      </p>
+                    </div>
+                    {uploadedFileName && (
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold mt-1">
+                        <Check className="w-3.5 h-3.5" /> {uploadedFileName}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 2: RECOMMENDED STOCK GALLERY */}
+            {imageMode === 'stock' && (
+              <div className="space-y-3">
+                <p className="text-xs font-medium text-[#6B7280]">
+                  Select a high-resolution academic photography banner:
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {STOCK_PRESETS.map((preset, idx) => {
+                    const isSelected = selectedImage === preset.url;
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => {
+                          setValue('image', preset.url);
+                          setUploadedFileName('');
+                        }}
+                        className={`group relative rounded-2xl overflow-hidden border-2 cursor-pointer transition-all ${
+                          isSelected
+                            ? 'border-[#007979] ring-2 ring-[#007979]/30 shadow-md'
+                            : 'border-[#E5E7EB] hover:border-gray-400 opacity-80 hover:opacity-100'
+                        }`}
+                      >
+                        <div className="w-full h-24 sm:h-28 bg-gray-100 overflow-hidden">
+                          <img
+                            src={preset.url}
+                            alt={preset.label}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        </div>
+                        <div className="p-2 bg-white flex items-center justify-between gap-1">
+                          <span className="text-[11px] font-bold text-[#1F2937] truncate">
+                            {preset.label}
+                          </span>
+                          {isSelected && (
+                            <span className="w-4 h-4 rounded-full bg-[#007979] text-white flex items-center justify-center text-[10px] shrink-0">
+                              ✓
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: DIRECT IMAGE URL */}
+            {imageMode === 'url' && (
+              <div className="space-y-2">
+                <Input
+                  placeholder="https://images.unsplash.com/photo-..."
+                  icon={LinkIcon}
+                  error={errors.image?.message}
+                  register={register('image', {
+                    required: 'Image URL or uploaded photo is required',
+                  })}
                 />
+                <p className="text-xs text-[#6B7280]">
+                  Paste any direct HTTPS image link from Unsplash, university media servers, or cloud storage.
+                </p>
+              </div>
+            )}
+
+            {/* Selected Image Live Preview */}
+            {selectedImage && (
+              <div className="space-y-2 pt-2 border-t border-[#E5E7EB]">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-[#1F2937] flex items-center gap-1.5">
+                    <Check className="w-3.5 h-3.5 text-[#16A34A]" /> Current Cover Preview
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setValue('image', STOCK_PRESETS[0].url);
+                      setUploadedFileName('');
+                      setImageMode('stock');
+                    }}
+                    className="text-[#007979] hover:underline flex items-center gap-1 font-medium cursor-pointer"
+                  >
+                    <RefreshCw className="w-3 h-3" /> Reset to default
+                  </button>
+                </div>
+                <div className="relative w-full h-44 sm:h-52 rounded-2xl overflow-hidden border border-[#E5E7EB] bg-gray-100 shadow-xs">
+                  <img
+                    src={selectedImage}
+                    alt="Cover preview"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.src = STOCK_PRESETS[0].url;
+                    }}
+                  />
+                  <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-xs text-white text-xs px-3 py-1 rounded-lg">
+                    {uploadedFileName ? `Custom Upload: ${uploadedFileName}` : 'Selected Campaign Banner'}
+                  </div>
+                </div>
               </div>
             )}
           </div>
