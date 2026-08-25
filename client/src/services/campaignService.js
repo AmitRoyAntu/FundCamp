@@ -210,7 +210,7 @@ export const campaignService = {
       donorName,
       paymentMethod
     });
-    return response.data.data;
+    return formatCampaign(response.data.data);
   },
 
   // GET /api/campaigns/:id/donations

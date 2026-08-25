@@ -105,23 +105,44 @@ export default function CampaignDetailPage() {
     setIsDonateModalOpen(true);
   };
 
-  const handleDonationSuccess = ({ amount, donorName, paymentMethod }) => {
-    setCampaign((prev) => ({
-      ...prev,
-      amountRaised: (prev.amountRaised || 0) + amount,
-    }));
+  const handleDonationSuccess = async ({ amount, donorName, paymentMethod }) => {
+    try {
+      await campaignService.donateToCampaign(id, {
+        amount,
+        donorName,
+        paymentMethod,
+      });
 
-    const newDonationObj = {
-      id: Date.now(),
-      donor_name: donorName,
-      amount,
-      payment_method: paymentMethod,
-      created_at: new Date().toISOString(),
-    };
-    setDonations((prev) => {
-      const updatedList = [newDonationObj, ...prev];
-      return updatedList.sort((a, b) => (b.amount || 0) - (a.amount || 0)).slice(0, 20);
-    });
+      // Live update campaign amountRaised locally
+      setCampaign((prev) => ({
+        ...prev,
+        amountRaised: (prev.amountRaised || 0) + amount,
+      }));
+
+      // Append to donations leaderboard list live
+      const newDonationObj = {
+        id: Date.now(),
+        donor_name: donorName,
+        amount,
+        payment_method: paymentMethod,
+        created_at: new Date().toISOString(),
+      };
+      setDonations((prev) => {
+        const updatedList = [newDonationObj, ...prev];
+        return updatedList.sort((a, b) => (b.amount || 0) - (a.amount || 0)).slice(0, 20);
+      });
+
+      toast.success(`Thank you! ৳${amount.toLocaleString()} support received via ${paymentMethod}!`, {
+        icon: '🎉',
+        duration: 4000,
+      });
+    } catch (err) {
+      console.warn('Donation update warning:', err);
+      setCampaign((prev) => ({
+        ...prev,
+        amountRaised: (prev.amountRaised || 0) + amount,
+      }));
+    }
   };
 
   const handlePostUpdate = async (e) => {

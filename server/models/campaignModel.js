@@ -46,14 +46,30 @@ export const Campaign = {
     return result.rows[0];
   },
 
-  donate: async (id, amount) => {
-    const sql = `
+  donate: async (arg1, arg2) => {
+    let id, amount, donorName, paymentMethod;
+    if (typeof arg1 === 'object' && arg1 !== null) {
+      ({ id, amount, donorName, paymentMethod } = arg1);
+    } else {
+      id = arg1;
+      amount = arg2;
+    }
+
+    const sqlUpdate = `
       UPDATE campaigns
       SET amount_raised = COALESCE(amount_raised, 0) + $1
       WHERE id = $2
       RETURNING *
     `;
-    const result = await query(sql, [amount, id]);
+    const result = await query(sqlUpdate, [amount, id]);
+
+    // Record donation transaction log
+    const sqlDonation = `
+      INSERT INTO donations (campaign_id, donor_name, amount, payment_method)
+      VALUES ($1, $2, $3, $4)
+    `;
+    await query(sqlDonation, [id, donorName || 'Anonymous Backer', amount, paymentMethod || 'bKash']);
+
     return result.rows[0];
   }
 };

@@ -176,8 +176,25 @@ function handleInMemoryQuery(text, params) {
     return { rows: campaigns };
   }
 
+  if (queryStr.includes('update campaigns') && queryStr.includes('amount_raised')) {
+    const amount = parseFloat(params[0]);
+    const id = parseInt(params[1], 10);
+    const campaign = inMemoryStore.campaigns.find(c => c.id === id);
+    if (campaign) {
+      campaign.amount_raised = (campaign.amount_raised || 0) + amount;
+      return { rows: [campaign] };
+    }
+    return { rows: [] };
+  }
+
   if (queryStr.includes('insert into campaigns')) {
-    const [title, description, category, department, image, goal_amount, creator_id] = params;
+    let title, description, category, department, image, goal_amount, tags, creator_id;
+    if (params.length === 8) {
+      [title, description, category, department, image, goal_amount, tags, creator_id] = params;
+    } else {
+      [title, description, category, department, image, goal_amount, creator_id] = params;
+      tags = [];
+    }
     const newCampaign = {
       id: inMemoryStore.campaigns.length + 1,
       title,
@@ -186,6 +203,7 @@ function handleInMemoryQuery(text, params) {
       department: department || 'University Department',
       image: image || null,
       goal_amount: parseFloat(goal_amount),
+      tags: Array.isArray(tags) ? tags : [],
       creator_id: parseInt(creator_id, 10),
       created_at: new Date().toISOString()
     };
@@ -247,17 +265,6 @@ function handleInMemoryQuery(text, params) {
     };
     inMemoryStore.comments.push(newComment);
     return { rows: [newComment] };
-  }
-
-  if (queryStr.includes('update campaigns') && queryStr.includes('amount_raised')) {
-    const amount = parseFloat(params[0]);
-    const id = parseInt(params[1], 10);
-    const campaign = inMemoryStore.campaigns.find(c => c.id === id);
-    if (campaign) {
-      campaign.amount_raised = (campaign.amount_raised || 0) + amount;
-      return { rows: [campaign] };
-    }
-    return { rows: [] };
   }
 
   // DONATIONS QUERIES
