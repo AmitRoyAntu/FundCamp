@@ -23,7 +23,7 @@ export const getUpdatesByCampaign = async (req, res) => {
 export const createUpdate = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, content } = req.body;
+    const { title, content, image, pdfUrl, pdfName } = req.body;
     const userId = req.user.id;
 
     if (!title || !content) {
@@ -55,7 +55,10 @@ export const createUpdate = async (req, res) => {
     const newUpdate = await CampaignUpdate.create({
       campaignId: id,
       title,
-      content
+      content,
+      image,
+      pdfUrl,
+      pdfName
     });
 
     return res.status(201).json({

@@ -12,13 +12,20 @@ export const CampaignUpdate = {
     return result.rows;
   },
 
-  create: async ({ campaignId, title, content }) => {
+  create: async ({ campaignId, title, content, image, pdfUrl, pdfName }) => {
     const sql = `
-      INSERT INTO campaign_updates (campaign_id, title, content)
-      VALUES ($1, $2, $3)
+      INSERT INTO campaign_updates (campaign_id, title, content, image, pdf_url, pdf_name)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `;
-    const result = await query(sql, [campaignId, title, content]);
+    const result = await query(sql, [
+      campaignId,
+      title,
+      content,
+      image || null,
+      pdfUrl || null,
+      pdfName || null
+    ]);
     return result.rows[0];
   }
 };

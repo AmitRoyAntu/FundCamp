@@ -38,6 +38,9 @@ CREATE TABLE IF NOT EXISTS campaign_updates (
     campaign_id INTEGER NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL,
     content TEXT NOT NULL,
+    image TEXT,
+    pdf_url TEXT,
+    pdf_name VARCHAR(255),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -181,8 +181,14 @@ export const campaignService = {
   },
 
   // POST /api/campaigns/:id/updates
-  async createCampaignUpdate(id, { title, content }) {
-    const response = await apiClient.post(`/campaigns/${id}/updates`, { title, content });
+  async createCampaignUpdate(id, { title, content, image, pdfUrl, pdfName }) {
+    const response = await apiClient.post(`/campaigns/${id}/updates`, {
+      title,
+      content,
+      image,
+      pdfUrl,
+      pdfName
+    });
     return response.data.data;
   },
 

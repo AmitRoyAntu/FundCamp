@@ -104,8 +104,8 @@ export default function CreateCampaignPage() {
       return;
     }
 
-    if (file.size > 15 * 1024 * 1024) {
-      toast.error('Image size must be less than 15MB.');
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File size cannot be larger than 10MB. Please choose a smaller file.');
       return;
     }
 
@@ -470,7 +470,7 @@ export default function CreateCampaignPage() {
                         Click to browse or drag & drop your project photo
                       </p>
                       <p className="text-xs text-[#6B7280] mt-0.5">
-                        Supports PNG, JPG, JPEG, WebP (Max 5MB)
+                        Supports PNG, JPG, JPEG, WebP • <strong>File size cannot be larger than 10MB</strong>
                       </p>
                     </div>
                     {uploadedFileName && (

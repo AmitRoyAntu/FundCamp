@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { campaignService } from '../../services/campaignService';
@@ -31,6 +31,14 @@ import {
   Trophy,
   Award,
   Users,
+  FileText,
+  Paperclip,
+  Download,
+  ExternalLink,
+  Trash2,
+  Image as ImageIcon,
+  Eye,
+  FileCheck,
 } from 'lucide-react';
 
 export default function CampaignDetailPage() {
@@ -50,12 +58,20 @@ export default function CampaignDetailPage() {
 
   // Modal State
   const [isDonateModalOpen, setIsDonateModalOpen] = useState(false);
+  const [previewModalImage, setPreviewModalImage] = useState(null);
 
-  // Form states
+  // Form states for Updates
   const [showUpdateForm, setShowUpdateForm] = useState(false);
   const [updateTitle, setUpdateTitle] = useState('');
   const [updateContent, setUpdateContent] = useState('');
+  const [updateImage, setUpdateImage] = useState('');
+  const [updateImageName, setUpdateImageName] = useState('');
+  const [updatePdfUrl, setUpdatePdfUrl] = useState('');
+  const [updatePdfName, setUpdatePdfName] = useState('');
   const [postingUpdate, setPostingUpdate] = useState(false);
+
+  const imageInputRef = useRef(null);
+  const pdfInputRef = useRef(null);
 
   const [commentContent, setCommentContent] = useState('');
   const [postingComment, setPostingComment] = useState(false);
@@ -145,6 +161,81 @@ export default function CampaignDetailPage() {
     }
   };
 
+  const handleImageFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload a valid image file (JPG, PNG, WebP).');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Photo size cannot be larger than 10MB. Please choose a smaller file.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const rawDataUrl = event.target.result;
+      const img = new Image();
+      img.onload = () => {
+        const MAX_WIDTH = 1280;
+        const MAX_HEIGHT = 960;
+        let width = img.width;
+        let height = img.height;
+        if (width > MAX_WIDTH || height > MAX_HEIGHT) {
+          if (width / height > MAX_WIDTH / MAX_HEIGHT) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+          } else {
+            width = Math.round((width * MAX_HEIGHT) / height);
+            height = MAX_HEIGHT;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressed = canvas.toDataURL('image/jpeg', 0.88);
+        setUpdateImage(compressed);
+        setUpdateImageName(file.name);
+        toast.success(`Attached photo: ${file.name}`);
+      };
+      img.onerror = () => {
+        setUpdateImage(rawDataUrl);
+        setUpdateImageName(file.name);
+      };
+      img.src = rawDataUrl;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handlePdfFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      toast.error('Please upload a valid PDF document (.pdf).');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('PDF document size cannot be larger than 10MB. Please choose a smaller file.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setUpdatePdfUrl(event.target.result);
+      setUpdatePdfName(file.name);
+      toast.success(`Attached PDF document: ${file.name}`);
+    };
+    reader.onerror = () => {
+      toast.error('Failed to read PDF document.');
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handlePostUpdate = async (e) => {
     e.preventDefault();
     if (!updateTitle.trim() || !updateContent.trim()) {
@@ -157,12 +248,19 @@ export default function CampaignDetailPage() {
       const newUpdate = await campaignService.createCampaignUpdate(id, {
         title: updateTitle.trim(),
         content: updateContent.trim(),
+        image: updateImage || null,
+        pdfUrl: updatePdfUrl || null,
+        pdfName: updatePdfName || null,
       });
       setUpdates([newUpdate, ...updates]);
       setUpdateTitle('');
       setUpdateContent('');
+      setUpdateImage('');
+      setUpdateImageName('');
+      setUpdatePdfUrl('');
+      setUpdatePdfName('');
       setShowUpdateForm(false);
-      toast.success('Campaign update published successfully!');
+      toast.success('Campaign update published with attachments!');
     } catch (err) {
       toast.error(err.response?.data?.message || err.message || 'Failed to post update');
     } finally {
@@ -445,7 +543,7 @@ export default function CampaignDetailPage() {
                           placeholder="e.g. Milestone 1 Reached: Lab Equipment Acquired!"
                           value={updateTitle}
                           onChange={(e) => setUpdateTitle(e.target.value)}
-                          className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[#E5E7EB] focus:outline-none focus:ring-2 focus:ring-[#007979]"
+                          className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[#E5E7EB] bg-white focus:outline-none focus:ring-2 focus:ring-[#007979]"
                           required
                         />
                       </div>
@@ -459,20 +557,118 @@ export default function CampaignDetailPage() {
                           placeholder="Provide details about your project progress, prototype testing, or budget allocations..."
                           value={updateContent}
                           onChange={(e) => setUpdateContent(e.target.value)}
-                          className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[#E5E7EB] focus:outline-none focus:ring-2 focus:ring-[#007979]"
+                          className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[#E5E7EB] bg-white focus:outline-none focus:ring-2 focus:ring-[#007979]"
                           required
                         />
                       </div>
 
-                      <Button
-                        type="submit"
-                        variant="cta"
-                        size="md"
-                        isLoading={postingUpdate}
-                        icon={Send}
-                      >
-                        Publish Update
-                      </Button>
+                      {/* Attachment Buttons */}
+                      <div className="space-y-3 pt-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {/* Image Attachment Button */}
+                          <input
+                            ref={imageInputRef}
+                            type="file"
+                            accept="image/png,image/jpeg,image/jpg,image/webp"
+                            onChange={handleImageFileChange}
+                            className="hidden"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => imageInputRef.current?.click()}
+                            className="px-3 py-2 rounded-xl border border-[#E5E7EB] bg-white hover:bg-gray-50 text-xs font-semibold text-[#1F2937] flex items-center gap-1.5 cursor-pointer shadow-2xs transition-colors"
+                          >
+                            <ImageIcon className="w-3.5 h-3.5 text-[#007979]" />
+                            <span>{updateImage ? 'Change Attached Photo' : 'Attach Photo'}</span>
+                          </button>
+
+                          {/* PDF Attachment Button */}
+                          <input
+                            ref={pdfInputRef}
+                            type="file"
+                            accept="application/pdf,.pdf"
+                            onChange={handlePdfFileChange}
+                            className="hidden"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => pdfInputRef.current?.click()}
+                            className="px-3 py-2 rounded-xl border border-[#E5E7EB] bg-white hover:bg-gray-50 text-xs font-semibold text-[#1F2937] flex items-center gap-1.5 cursor-pointer shadow-2xs transition-colors"
+                          >
+                            <FileText className="w-3.5 h-3.5 text-[#E37434]" />
+                            <span>{updatePdfUrl ? 'Change PDF Document' : 'Attach PDF Report'}</span>
+                          </button>
+                        </div>
+
+                        <p className="text-[11px] text-[#6B7280]">
+                          Supports PNG, JPG, WebP, and PDF documents • <strong>File size cannot be larger than 10MB</strong>
+                        </p>
+
+                        {/* Image Preview Box */}
+                        {updateImage && (
+                          <div className="relative inline-block rounded-2xl overflow-hidden border border-[#E5E7EB] shadow-2xs group">
+                            <img
+                              src={updateImage}
+                              alt="Update attachment"
+                              className="h-28 sm:h-36 w-auto object-cover rounded-xl"
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setUpdateImage('');
+                                  setUpdateImageName('');
+                                }}
+                                className="p-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 cursor-pointer text-xs flex items-center gap-1 font-semibold"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" /> Remove
+                              </button>
+                            </div>
+                            <span className="absolute bottom-1.5 left-1.5 px-2 py-0.5 rounded bg-black/60 text-white text-[10px] backdrop-blur-xs">
+                              {updateImageName || 'Attached Photo'}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* PDF Preview Box */}
+                        {updatePdfUrl && (
+                          <div className="flex items-center justify-between p-3 rounded-xl border border-amber-200 bg-amber-50/50 max-w-md">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="w-8 h-8 rounded-lg bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+                                <FileText className="w-4 h-4" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-[#1F2937] truncate">
+                                  {updatePdfName || 'Attached Document.pdf'}
+                                </p>
+                                <p className="text-[10px] text-amber-800">PDF Report attached</p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setUpdatePdfUrl('');
+                                setUpdatePdfName('');
+                              }}
+                              className="p-1 text-gray-400 hover:text-red-600 cursor-pointer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="pt-2">
+                        <Button
+                          type="submit"
+                          variant="cta"
+                          size="md"
+                          isLoading={postingUpdate}
+                          icon={Send}
+                        >
+                          Publish Update
+                        </Button>
+                      </div>
                     </form>
                   )}
                 </div>
@@ -491,24 +687,86 @@ export default function CampaignDetailPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {updates.map((upd, idx) => (
-                    <Card key={upd.id || idx} hoverable={false} className="p-6 space-y-3 border border-[#E5E7EB]">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#007979]/10 text-[#007979]">
-                            Update #{updates.length - idx}
-                          </span>
-                          <span className="text-xs text-[#6B7280] font-medium">
-                            {formatDate(upd.created_at || upd.createdAt)}
-                          </span>
+                  {updates.map((upd, idx) => {
+                    const hasImage = Boolean(upd.image);
+                    const hasPdf = Boolean(upd.pdf_url || upd.pdfUrl);
+                    const pdfLink = upd.pdf_url || upd.pdfUrl;
+                    const pdfTitle = upd.pdf_name || upd.pdfName || 'Milestone_Documentation_Report.pdf';
+
+                    return (
+                      <Card key={upd.id || idx} hoverable={false} className="p-6 space-y-4 border border-[#E5E7EB]">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#007979]/10 text-[#007979]">
+                              Update #{updates.length - idx}
+                            </span>
+                            <span className="text-xs text-[#6B7280] font-medium">
+                              {formatDate(upd.created_at || upd.createdAt)}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                      <h3 className="text-lg font-bold text-[#1F2937]">{upd.title}</h3>
-                      <p className="text-sm text-[#1F2937] leading-relaxed whitespace-pre-line">
-                        {upd.content}
-                      </p>
-                    </Card>
-                  ))}
+
+                        <h3 className="text-lg font-bold text-[#1F2937]">{upd.title}</h3>
+
+                        <p className="text-sm text-[#1F2937] leading-relaxed whitespace-pre-line">
+                          {upd.content}
+                        </p>
+
+                        {/* Image Attachment in Update Card */}
+                        {hasImage && (
+                          <div className="pt-2">
+                            <div
+                              onClick={() => setPreviewModalImage(upd.image)}
+                              className="relative rounded-2xl overflow-hidden border border-[#E5E7EB] bg-gray-50 max-h-80 sm:max-h-96 cursor-pointer group shadow-2xs"
+                            >
+                              <img
+                                src={upd.image}
+                                alt={upd.title}
+                                className="w-full h-full object-cover group-hover:scale-[1.01] transition-transform duration-300"
+                              />
+                              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <span className="px-3 py-1.5 rounded-xl bg-black/70 text-white text-xs font-bold flex items-center gap-1.5 backdrop-blur-xs">
+                                  <Eye className="w-3.5 h-3.5" /> Click to view full photo
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* PDF Document Attachment in Update Card */}
+                        {hasPdf && (
+                          <div className="pt-2">
+                            <div className="p-4 rounded-2xl border border-red-200/80 bg-gradient-to-r from-red-50/60 to-rose-50/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center shrink-0 border border-red-200">
+                                  <FileText className="w-5 h-5" />
+                                </div>
+                                <div className="min-w-0">
+                                  <span className="text-xs font-extrabold text-red-700 uppercase tracking-wider">
+                                    Official Document / PDF
+                                  </span>
+                                  <p className="text-sm font-bold text-[#1F2937] truncate mt-0.5">
+                                    {pdfTitle}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <a
+                                href={pdfLink}
+                                download={pdfTitle}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-xs transition-colors shrink-0 cursor-pointer"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                                <span>Download / View PDF</span>
+                              </a>
+                            </div>
+                          </div>
+                        )}
+                      </Card>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -828,6 +1086,28 @@ export default function CampaignDetailPage() {
         onClose={() => setIsDonateModalOpen(false)}
         onSuccess={handleDonationSuccess}
       />
+
+      {/* Full-Screen Image Lightbox Modal */}
+      {previewModalImage && (
+        <div
+          onClick={() => setPreviewModalImage(null)}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 cursor-zoom-out animate-in fade-in duration-200"
+        >
+          <div className="relative max-w-4xl max-h-[90vh] bg-transparent rounded-2xl overflow-hidden shadow-2xl">
+            <img
+              src={previewModalImage}
+              alt="Full size preview"
+              className="max-w-full max-h-[85vh] object-contain rounded-2xl border border-white/20"
+            />
+            <button
+              onClick={() => setPreviewModalImage(null)}
+              className="absolute top-3 right-3 px-3 py-1.5 rounded-full bg-black/70 hover:bg-black text-white text-xs font-bold transition-colors cursor-pointer"
+            >
+              ✕ Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

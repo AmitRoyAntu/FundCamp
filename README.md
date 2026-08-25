@@ -1,6 +1,6 @@
 # FundCamp — University Crowdfunding Platform
 
-FundCamp is a production-ready university crowdfunding platform where students, faculty, and alumni create and support fundraising campaigns.
+FundCamp is a university crowdfunding platform where students, faculty, and alumni create and support fundraising campaigns.
 
 The project is architected as a modular full-stack monorepo with independent `client` (React + Vite + Nginx), `server` (Express REST API + PostgreSQL), and a dedicated root `nginx` reverse proxy microservice.
 

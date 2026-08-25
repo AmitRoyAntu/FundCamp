@@ -220,12 +220,15 @@ function handleInMemoryQuery(text, params) {
   }
 
   if (queryStr.includes('insert into campaign_updates')) {
-    const [campaign_id, title, content] = params;
+    const [campaign_id, title, content, image, pdf_url, pdf_name] = params;
     const newUpdate = {
       id: inMemoryStore.updates.length + 1,
       campaign_id: parseInt(campaign_id, 10),
       title,
       content,
+      image: image || null,
+      pdf_url: pdf_url || null,
+      pdf_name: pdf_name || null,
       created_at: new Date().toISOString()
     };
     inMemoryStore.updates.push(newUpdate);
