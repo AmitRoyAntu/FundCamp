@@ -1,4 +1,5 @@
 import apiClient from './apiClient';
+import { MALE_AVATAR } from '../constants/avatars';
 
 const CURRENT_USER_KEY = 'fundcamp_current_user';
 const TOKEN_KEY = 'fundcamp_token';
@@ -12,7 +13,7 @@ const formatUserData = (u) => {
     universityId: u.universityId || `STU-2026-${u.id || Math.floor(1000 + Math.random() * 9000)}`,
     department: u.department || 'Computer Science & Engineering',
     userType: u.userType || u.user_type || 'Student',
-    avatar: u.avatar || `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300`,
+    avatar: u.avatar || MALE_AVATAR,
     joinedDate: u.createdAt ? new Date(u.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
   };
 };
@@ -44,15 +45,14 @@ export const authService = {
         password: userData.password,
         department: userData.department || 'Computer Science & Engineering',
         userType: userData.userType || 'Student',
+        avatar: userData.avatar || null,
+        universityId: userData.universityId || null,
       };
 
       const response = await apiClient.post('/auth/register', payload);
       const { token, user } = response.data.data;
 
-      const formattedUser = formatUserData({
-        ...user,
-        universityId: userData.universityId,
-      });
+      const formattedUser = formatUserData(user);
 
       localStorage.setItem(TOKEN_KEY, token);
       localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(formattedUser));
@@ -65,8 +65,8 @@ export const authService = {
 
   // Logout
   async logout() {
-    localStorage.removeItem(CURRENT_USER_KEY);
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(CURRENT_USER_KEY);
     return true;
   },
 
@@ -100,14 +100,25 @@ export const authService = {
     }
   },
 
-  // Update Profile in client state / local storage
+  // Update Profile via PUT /api/profile
   async updateProfile(profileData) {
-    const cached = localStorage.getItem(CURRENT_USER_KEY);
-    const currentUser = cached ? JSON.parse(cached) : {};
-    const updatedUser = formatUserData({ ...currentUser, ...profileData });
-
-    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(updatedUser));
-    return updatedUser;
+    try {
+      const response = await apiClient.put('/profile', {
+        fullName: profileData.fullName || profileData.name,
+        department: profileData.department,
+        universityId: profileData.universityId,
+        avatar: profileData.avatar
+      });
+      const user = response.data.data;
+      const formattedUser = formatUserData(user);
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(formattedUser));
+      return formattedUser;
+    } catch (error) {
+      const cached = localStorage.getItem(CURRENT_USER_KEY);
+      const currentUser = cached ? JSON.parse(cached) : {};
+      const updatedUser = formatUserData({ ...currentUser, ...profileData });
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(updatedUser));
+      return updatedUser;
+    }
   },
 };
-

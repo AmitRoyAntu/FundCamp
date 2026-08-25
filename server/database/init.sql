@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS users (
     password VARCHAR(255) NOT NULL,
     department VARCHAR(255) NOT NULL,
     user_type VARCHAR(50) NOT NULL,
+    avatar TEXT,
+    university_id VARCHAR(100),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

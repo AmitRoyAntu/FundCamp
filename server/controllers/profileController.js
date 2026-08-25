@@ -25,11 +25,57 @@ export const getProfile = async (req, res) => {
         email: user.email,
         department: user.department,
         userType: user.user_type || user.userType,
+        avatar: user.avatar,
+        universityId: user.university_id || user.universityId,
         createdAt: user.created_at
       }
     });
   } catch (error) {
     console.error('Get Profile Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+export const updateProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { name, fullName, department, universityId, avatar } = req.body;
+
+    const updatedUser = await User.update(userId, {
+      name: fullName || name,
+      department,
+      universityId,
+      avatar
+    });
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+        error: 'Profile does not exist'
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        department: updatedUser.department,
+        userType: updatedUser.user_type || updatedUser.userType,
+        avatar: updatedUser.avatar,
+        universityId: updatedUser.university_id || updatedUser.universityId,
+        createdAt: updatedUser.created_at
+      }
+    });
+  } catch (error) {
+    console.error('Update Profile Error:', error);
     return res.status(500).json({
       success: false,
       message: 'Internal server error',

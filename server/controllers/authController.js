@@ -4,7 +4,7 @@ import { User } from '../models/userModel.js';
 
 export const register = async (req, res) => {
   try {
-    const { name, email, password, department, userType } = req.body;
+    const { name, email, password, department, userType, avatar, universityId } = req.body;
 
     // Validation
     if (!name || !email || !password || !department || !userType) {
@@ -52,7 +52,9 @@ export const register = async (req, res) => {
       email,
       password: hashedPassword,
       department,
-      userType
+      userType,
+      avatar: avatar || null,
+      universityId: universityId || null
     });
 
     // Generate token
@@ -69,7 +71,9 @@ export const register = async (req, res) => {
           name: newUser.name,
           email: newUser.email,
           department: newUser.department,
-          userType: newUser.user_type || newUser.userType
+          userType: newUser.user_type || newUser.userType,
+          avatar: newUser.avatar,
+          universityId: newUser.university_id || newUser.universityId
         }
       }
     });
@@ -126,7 +130,9 @@ export const login = async (req, res) => {
           name: user.name,
           email: user.email,
           department: user.department,
-          userType: user.user_type || user.userType
+          userType: user.user_type || user.userType,
+          avatar: user.avatar,
+          universityId: user.university_id || user.universityId
         }
       }
     });

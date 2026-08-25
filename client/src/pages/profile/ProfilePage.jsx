@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { campaignService } from '../../services/campaignService';
 import { profileService } from '../../services/profileService';
@@ -13,6 +13,7 @@ import CampaignCard from '../../components/campaign/CampaignCard';
 import EmptyState from '../../components/common/EmptyState';
 import { ProfileSkeleton, CampaignSkeleton } from '../../components/common/Skeleton';
 import { DEPARTMENTS } from '../../constants/userTypes';
+import { MALE_AVATAR, FEMALE_AVATAR } from '../../constants/avatars';
 import { formatCurrency, calculatePercentage, formatDate } from '../../utils/formatters';
 import toast from 'react-hot-toast';
 import {
@@ -38,6 +39,10 @@ import {
   Receipt,
   BarChart3,
   Megaphone,
+  Camera,
+  Upload,
+  Trash2,
+  Check,
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 
@@ -60,7 +65,10 @@ export default function ProfilePage() {
     fullName: '',
     department: '',
     universityId: '',
+    avatar: '',
   });
+
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (currentUser) {
@@ -68,10 +76,62 @@ export default function ProfilePage() {
         fullName: currentUser.fullName || '',
         department: currentUser.department || '',
         universityId: currentUser.universityId || '',
+        avatar: currentUser.avatar || '',
       });
       loadProfileData();
     }
   }, [currentUser]);
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload a valid image file (PNG, JPG, WebP).');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File size cannot be larger than 10MB. Please choose a smaller file.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const rawDataUrl = event.target.result;
+      const img = new Image();
+      img.onload = () => {
+        const MAX_DIM = 400;
+        let width = img.width;
+        let height = img.height;
+        if (width > MAX_DIM || height > MAX_DIM) {
+          if (width > height) {
+            height = Math.round((height * MAX_DIM) / width);
+            width = MAX_DIM;
+          } else {
+            width = Math.round((width * MAX_DIM) / height);
+            height = MAX_DIM;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+        const compressed = canvas.toDataURL(mimeType, 0.9);
+        setEditData((prev) => ({ ...prev, avatar: compressed }));
+        toast.success('Photo preview ready. Click "Save Changes" to update!');
+      };
+      img.onerror = () => {
+        setEditData((prev) => ({ ...prev, avatar: rawDataUrl }));
+      };
+      img.src = rawDataUrl;
+    };
+    reader.readAsDataURL(file);
+  };
 
   const loadProfileData = async () => {
     setLoading(true);
@@ -145,12 +205,21 @@ export default function ProfilePage() {
       {/* Main Profile Identity Card */}
       <Card className="p-6 sm:p-8 shadow-sm border border-[#E5E7EB] relative overflow-hidden bg-gradient-to-r from-white via-white to-[#FFFDF8]">
         <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
-          <Avatar
-            src={currentUser.avatar}
-            name={currentUser.fullName}
-            size="xl"
-            className="ring-4 ring-[#007979]/20 shrink-0"
-          />
+          <div
+            className="relative group cursor-pointer shrink-0"
+            onClick={() => setIsModalOpen(true)}
+            title="Click to edit profile & photo"
+          >
+            <Avatar
+              src={currentUser.avatar}
+              name={currentUser.fullName}
+              size="xl"
+              className="ring-2 ring-gray-200 shadow-xs transition-transform group-hover:scale-105"
+            />
+            <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white backdrop-blur-xs">
+              <Camera className="w-6 h-6" />
+            </div>
+          </div>
 
           <div className="space-y-3 text-center md:text-left flex-1 min-w-0">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -572,7 +641,99 @@ export default function ProfilePage() {
         onClose={() => setIsModalOpen(false)}
         title="Edit Profile Information"
       >
-        <form onSubmit={handleEditSubmit} className="space-y-4">
+        <form onSubmit={handleEditSubmit} className="space-y-5">
+          {/* Profile Photo Uploader */}
+          <div className="p-4 rounded-2xl bg-gray-50/70 border border-gray-200 space-y-3.5">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-gray-800">
+                Profile Photo
+              </label>
+              <span className="text-[11px] text-gray-500">Max 10MB</span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
+              <div
+                className="relative group cursor-pointer shrink-0"
+                onClick={() => fileInputRef.current?.click()}
+                title="Click to browse image"
+              >
+                <Avatar
+                  src={editData.avatar || currentUser.avatar}
+                  name={editData.fullName || currentUser.fullName}
+                  size="lg"
+                  className="ring-2 ring-gray-200 shadow-xs"
+                />
+                <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white backdrop-blur-2xs">
+                  <Camera className="w-5 h-5" />
+                </div>
+              </div>
+
+              {/* Primary: Upload Button & File Info */}
+              <div className="space-y-3 flex-1 min-w-0 text-center sm:text-left">
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/webp"
+                    onChange={handleAvatarChange}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-3.5 py-1.5 rounded-xl border border-gray-300 bg-white hover:bg-gray-100 text-xs font-semibold text-gray-800 flex items-center gap-1.5 cursor-pointer shadow-2xs transition-colors"
+                  >
+                    <Upload className="w-3.5 h-3.5 text-gray-600" /> Choose Photo
+                  </button>
+                </div>
+
+                <p className="text-[11px] text-gray-500">
+                  Supports PNG, JPG, WebP • File size cannot be larger than 10MB
+                </p>
+
+                {/* Secondary Option: Just the Male & Female Logo Icons (No Titles) */}
+                <div className="flex items-center justify-center sm:justify-start gap-2.5 pt-2 border-t border-gray-200/80">
+                  <span className="text-[11px] text-gray-500 font-medium">Or choose avatar:</span>
+                  <div className="flex items-center gap-2">
+                    {/* Male Logo Thumbnail Only */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditData((prev) => ({ ...prev, avatar: MALE_AVATAR }));
+                        toast.success('Selected Male avatar logo!');
+                      }}
+                      title="Male Avatar"
+                      className={`relative p-0.5 rounded-full transition-all cursor-pointer ${
+                        editData.avatar === MALE_AVATAR
+                          ? 'ring-2 ring-gray-900 scale-110 shadow-xs'
+                          : 'opacity-60 hover:opacity-100 hover:scale-105'
+                      }`}
+                    >
+                      <img src={MALE_AVATAR} alt="Male Avatar" className="w-7 h-7 rounded-full object-cover" />
+                    </button>
+
+                    {/* Female Logo Thumbnail Only */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditData((prev) => ({ ...prev, avatar: FEMALE_AVATAR }));
+                        toast.success('Selected Female avatar logo!');
+                      }}
+                      title="Female Avatar"
+                      className={`relative p-0.5 rounded-full transition-all cursor-pointer ${
+                        editData.avatar === FEMALE_AVATAR
+                          ? 'ring-2 ring-gray-900 scale-110 shadow-xs'
+                          : 'opacity-60 hover:opacity-100 hover:scale-105'
+                      }`}
+                    >
+                      <img src={FEMALE_AVATAR} alt="Female Avatar" className="w-7 h-7 rounded-full object-cover" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <Input
             label="Full Name"
             value={editData.fullName}
