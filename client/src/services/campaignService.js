@@ -12,11 +12,26 @@ const defaultImages = {
 const formatCampaign = (c) => {
   if (!c) return null;
   const category = c.category || (c.title?.toLowerCase().includes('medical') ? 'Medical' : c.title?.toLowerCase().includes('research') ? 'Research' : 'Education');
+  
+  let parsedTags = [];
+  if (Array.isArray(c.tags)) {
+    parsedTags = c.tags;
+  } else if (typeof c.tags === 'string') {
+    if (c.tags.startsWith('{') && c.tags.endsWith('}')) {
+      parsedTags = c.tags.slice(1, -1).split(',').map(t => t.replace(/^"|"$/g, '').trim()).filter(Boolean);
+    } else if (c.tags.startsWith('[') && c.tags.endsWith(']')) {
+      try { parsedTags = JSON.parse(c.tags); } catch(e) { parsedTags = []; }
+    } else if (c.tags.trim() !== '') {
+      parsedTags = c.tags.split(',').map(t => t.trim()).filter(Boolean);
+    }
+  }
+
   return {
     id: String(c.id),
     title: c.title,
     description: c.description,
     category,
+    tags: parsedTags,
     goalAmount: Number(c.goal_amount || c.goalAmount || 5000),
     amountRaised: Number(c.amount_raised || c.amountRaised || 0),
     creator: {
@@ -45,17 +60,27 @@ export const campaignService = {
     const rawList = response.data.data || [];
     let campaigns = rawList.map(formatCampaign);
 
-    const { search, category, status, userType, sortBy } = filters;
+    const { search, category, status, userType, sortBy, tag } = filters;
 
-    // Client-side search filtering
+    // Client-side search filtering (searches title, description, department, creator name, AND tags)
     if (search && search.trim() !== '') {
       const q = search.toLowerCase().trim();
+      const cleanQ = q.startsWith('#') ? q.slice(1).trim() : q;
       campaigns = campaigns.filter(
         (c) =>
           c.title.toLowerCase().includes(q) ||
           c.description.toLowerCase().includes(q) ||
           c.department.toLowerCase().includes(q) ||
-          c.creator.name.toLowerCase().includes(q)
+          c.creator.name.toLowerCase().includes(q) ||
+          (c.tags && c.tags.some((t) => t.toLowerCase().includes(cleanQ) || t.toLowerCase().includes(q)))
+      );
+    }
+
+    // Specific tag filter
+    if (tag && tag !== 'All') {
+      const cleanTag = tag.toLowerCase().replace(/^#/, '').trim();
+      campaigns = campaigns.filter(
+        (c) => c.tags && c.tags.some((t) => t.toLowerCase() === cleanTag)
       );
     }
 
@@ -115,6 +140,7 @@ export const campaignService = {
       category: campaignData.category,
       department: campaignData.department || user?.department,
       image: campaignData.image,
+      tags: campaignData.tags || [],
       goalAmount: Number(campaignData.goalAmount)
     };
 
@@ -126,6 +152,7 @@ export const campaignService = {
       category: created.category || campaignData.category,
       department: created.department || campaignData.department || user?.department,
       image: created.image || campaignData.image,
+      tags: created.tags || campaignData.tags || [],
       creator_name: user?.fullName || user?.name || 'Anonymous Creator',
       creator_department: user?.department || 'Campus Department'
     });

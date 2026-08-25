@@ -23,10 +23,14 @@ export const Campaign = {
     return result.rows[0] || null;
   },
 
-  create: async ({ title, description, category, department, image, goalAmount, creatorId }) => {
+  create: async ({ title, description, category, department, image, goalAmount, tags, creatorId }) => {
+    const formattedTags = Array.isArray(tags)
+      ? tags.map(t => String(t).replace(/^#/, '').trim()).filter(Boolean)
+      : (typeof tags === 'string' ? tags.split(',').map(t => t.replace(/^#/, '').trim()).filter(Boolean) : []);
+
     const sql = `
-      INSERT INTO campaigns (title, description, category, department, image, goal_amount, creator_id)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO campaigns (title, description, category, department, image, goal_amount, tags, creator_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
     `;
     const result = await query(sql, [
@@ -36,6 +40,7 @@ export const Campaign = {
       department || 'University Department',
       image || null,
       goalAmount,
+      formattedTags,
       creatorId
     ]);
     return result.rows[0];

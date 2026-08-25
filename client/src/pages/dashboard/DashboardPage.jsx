@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { campaignService } from '../../services/campaignService';
 import CampaignCard from '../../components/campaign/CampaignCard';
 import PageHeader from '../../components/common/PageHeader';
@@ -14,15 +14,24 @@ import { PlusCircle, SlidersHorizontal, Sparkles } from 'lucide-react';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Filter States
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(searchParams.get('search') || '');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [selectedUserType, setSelectedUserType] = useState('All');
   const [sortBy, setSortBy] = useState('recent');
+
+  // Sync state if searchParam changes (e.g. from header or tag clicks)
+  useEffect(() => {
+    const querySearch = searchParams.get('search');
+    if (querySearch !== null && querySearch !== search) {
+      setSearch(querySearch);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     fetchCampaigns();
@@ -52,6 +61,7 @@ export default function DashboardPage() {
     setSelectedStatus('All');
     setSelectedUserType('All');
     setSortBy('recent');
+    setSearchParams({});
   };
 
   const hasActiveFilters =
@@ -88,8 +98,12 @@ export default function DashboardPage() {
           <div className="bg-white p-4 rounded-2xl border border-[#E5E7EB] shadow-xs space-y-4">
             <SearchBar
               value={search}
-              onChange={setSearch}
-              placeholder="Search by campaign title, department, or creator..."
+              onChange={(val) => {
+                setSearch(val);
+                if (val) setSearchParams({ search: val });
+                else setSearchParams({});
+              }}
+              placeholder="Search by title, department, creator, or #tag..."
             />
 
             {/* Filter Pills / Dropdowns */}

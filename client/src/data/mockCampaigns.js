@@ -4,6 +4,7 @@ export const INITIAL_MOCK_CAMPAIGNS = [
     title: 'Autonomous Solar-Powered Campus Transit Shuttle',
     description: 'A student-led engineering initiative to design, construct, and deploy an electric solar shuttle designed to transport students with mobility impairments across campus grounds.',
     category: 'Research',
+    tags: ['Robotics', 'Hardware', 'SolarEnergy', 'CleanEnergy', 'AI_ML'],
     goalAmount: 25000,
     amountRaised: 18450,
     creator: {
@@ -29,6 +30,7 @@ export const INITIAL_MOCK_CAMPAIGNS = [
     title: '3D Bioprinting Lab Expansion for Cancer Therapeutics',
     description: 'Acquiring high-precision bioprinting equipment to allow undergraduate researchers to fabricate micro-vascular tissue models for targeted chemotherapy testing.',
     category: 'Medical',
+    tags: ['MedicalEmergency', 'BioTech', 'LabEquipment', 'Treatment'],
     goalAmount: 40000,
     amountRaised: 32100,
     creator: {
@@ -54,6 +56,7 @@ export const INITIAL_MOCK_CAMPAIGNS = [
     title: 'First-Generation STEM Student Opportunity Endowment',
     description: 'Providing emergency textbook grants, conference travel stipends, and laptop hardware access to first-generation university students pursuing engineering degrees.',
     category: 'Scholarship',
+    tags: ['Scholarship', 'StudentAid', 'NeedBased', 'TuitionWaiver'],
     goalAmount: 15000,
     amountRaised: 15000,
     creator: {
@@ -78,6 +81,7 @@ export const INITIAL_MOCK_CAMPAIGNS = [
     title: 'Community Urban Hydroponic Greenhouse Initiative',
     description: 'Transforming an unused rooftop into an automated zero-pesticide hydroponic farm supplying fresh organic produce to local campus food pantries.',
     category: 'Environment',
+    tags: ['GreenCampus', 'Sustainability', 'CleanEnergy', 'CampusClub'],
     goalAmount: 12000,
     amountRaised: 8750,
     creator: {
@@ -103,6 +107,7 @@ export const INITIAL_MOCK_CAMPAIGNS = [
     title: 'Campus Open Digital Library & Rare Manuscript Digitization',
     description: 'Equipping our university archives with high-resolution overhead scanners to digitize historical university publications, regional maps, and rare manuscripts for public access.',
     category: 'Education',
+    tags: ['Education', 'Workshop', 'LabEquipment', 'Textbooks'],
     goalAmount: 18000,
     amountRaised: 9200,
     creator: {
@@ -127,6 +132,7 @@ export const INITIAL_MOCK_CAMPAIGNS = [
     title: 'AI-Assisted Prosthetics & Assistive Robotics Lab',
     description: 'Designing affordable, custom 3D-printed bionic hands and upper-limb prosthetics integrated with low-latency EMG muscle sensors for pediatric patients.',
     category: 'Research',
+    tags: ['Robotics', 'AI_ML', 'Hardware', 'Microcontrollers', 'Sensors'],
     goalAmount: 30000,
     amountRaised: 22400,
     creator: {
@@ -151,6 +157,7 @@ export const INITIAL_MOCK_CAMPAIGNS = [
     title: 'Mobile Free Health Clinic for Rural Communities',
     description: 'A student-faculty collaborative outreach converting a sprinter van into a mobile healthcare unit providing free health screenings and dental hygiene to underserved rural areas.',
     category: 'Community',
+    tags: ['MedicalEmergency', 'Volunteering', 'StudentAid', 'Community'],
     goalAmount: 35000,
     amountRaised: 31000,
     creator: {
@@ -175,6 +182,7 @@ export const INITIAL_MOCK_CAMPAIGNS = [
     title: 'Zero-Waste Campus Pavilion & Living Design Workshop',
     description: 'An architectural design-build project constructing an outdoor shade pavilion made entirely from upcycled timber, recycled ocean plastics, and bio-composite insulation.',
     category: 'Environment',
+    tags: ['Sustainability', 'GreenCampus', 'Workshop', 'Competition'],
     goalAmount: 16000,
     amountRaised: 11200,
     creator: {

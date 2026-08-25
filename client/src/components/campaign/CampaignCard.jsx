@@ -69,6 +69,29 @@ export default function CampaignCard({ campaign }) {
             {title}
           </h3>
           <p className="text-sm text-[#6B7280] line-clamp-2 leading-relaxed">{description}</p>
+          
+          {/* Tags */}
+          {campaign.tags && campaign.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {campaign.tags.slice(0, 3).map((t, idx) => (
+                <span
+                  key={idx}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/dashboard?search=${encodeURIComponent('#' + t)}`);
+                  }}
+                  className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-gray-100 text-gray-700 hover:bg-[#007979]/10 hover:text-[#007979] transition-colors"
+                >
+                  #{t}
+                </span>
+              ))}
+              {campaign.tags.length > 3 && (
+                <span className="text-[11px] text-gray-400 font-medium self-center">
+                  +{campaign.tags.length - 3}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Funding Progress */}

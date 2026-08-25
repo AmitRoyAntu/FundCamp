@@ -9,7 +9,7 @@ import Textarea from '../../components/common/Textarea';
 import Dropdown from '../../components/common/Dropdown';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
-import { CAMPAIGN_CATEGORIES } from '../../constants/categories';
+import { CAMPAIGN_CATEGORIES, SUGGESTED_TAGS_BY_CATEGORY } from '../../constants/categories';
 import { DEPARTMENTS } from '../../constants/userTypes';
 import toast from 'react-hot-toast';
 import {
@@ -20,12 +20,17 @@ import {
   Tag,
   ArrowLeft,
   GraduationCap,
+  Plus,
+  X,
+  Hash,
 } from 'lucide-react';
 
 export default function CreateCampaignPage() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [tags, setTags] = useState(['Robotics', 'Hardware']);
+  const [customTagInput, setCustomTagInput] = useState('');
 
   // Preset recommended high-res Unsplash images for quick click selection
   const presetImages = [
@@ -53,11 +58,43 @@ export default function CreateCampaignPage() {
   });
 
   const selectedImage = watch('image');
+  const selectedCategory = watch('category') || 'Education';
+  const categorySuggestions = SUGGESTED_TAGS_BY_CATEGORY[selectedCategory] || [];
+
+  const handleAddTag = (newTag) => {
+    const cleanTag = newTag.replace(/^#/, '').trim();
+    if (!cleanTag) return;
+    if (tags.some((t) => t.toLowerCase() === cleanTag.toLowerCase())) {
+      toast.error(`Tag #${cleanTag} already added`);
+      return;
+    }
+    if (tags.length >= 8) {
+      toast.error('You can add up to 8 tags');
+      return;
+    }
+    setTags([...tags, cleanTag]);
+    setCustomTagInput('');
+  };
+
+  const handleRemoveTag = (tagToRemove) => {
+    setTags(tags.filter((t) => t !== tagToRemove));
+  };
+
+  const handleTagKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      handleAddTag(customTagInput);
+    }
+  };
 
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      const created = await campaignService.createCampaign(data, currentUser);
+      const payload = {
+        ...data,
+        tags,
+      };
+      const created = await campaignService.createCampaign(payload, currentUser);
       toast.success('Campaign created successfully!');
       navigate(`/campaign/${created.id}`);
     } catch (err) {
@@ -109,7 +146,7 @@ export default function CreateCampaignPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Category */}
             <Dropdown
-              label="Category"
+              label="Category (Broad Purpose)"
               icon={Tag}
               options={CAMPAIGN_CATEGORIES}
               error={errors.category?.message}
@@ -130,6 +167,91 @@ export default function CreateCampaignPage() {
                 required: 'Please select department',
               })}
             />
+          </div>
+
+          {/* Multi-Tags Discovery Section */}
+          <div className="space-y-3 p-4 rounded-2xl bg-[#FFFDF8] border border-[#E5E7EB]">
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-bold text-[#1F2937] flex items-center gap-2">
+                <Hash className="w-4 h-4 text-[#007979]" />
+                Specific Tags & Keywords ({tags.length}/8)
+              </label>
+              <span className="text-xs text-[#6B7280]">Searched automatically in Explore</span>
+            </div>
+
+            {/* Active Tags Chips */}
+            {tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 pt-1">
+                {tags.map((t) => (
+                  <span
+                    key={t}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#007979]/10 text-[#007979] border border-[#007979]/20"
+                  >
+                    <span>#{t}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveTag(t)}
+                      className="text-[#007979] hover:text-red-500 rounded-full p-0.5 transition-colors cursor-pointer"
+                      title="Remove tag"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Custom Tag Input */}
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">#</span>
+                <input
+                  type="text"
+                  value={customTagInput}
+                  onChange={(e) => setCustomTagInput(e.target.value)}
+                  onKeyDown={handleTagKeyDown}
+                  placeholder="Type specific tag (e.g. Microcontrollers, AI_ML) & press Enter"
+                  className="w-full pl-8 pr-3 py-2 text-sm border border-[#E5E7EB] rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#24B1B1]"
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handleAddTag(customTagInput)}
+                icon={Plus}
+              >
+                Add
+              </Button>
+            </div>
+
+            {/* Recommended Tag Suggestions for Current Category */}
+            {categorySuggestions.length > 0 && (
+              <div className="pt-2">
+                <p className="text-xs font-medium text-[#6B7280] mb-1.5">
+                  Suggested for <span className="font-semibold text-[#1F2937]">{selectedCategory}</span>:
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {categorySuggestions.map((suggested) => {
+                    const isAdded = tags.some((t) => t.toLowerCase() === suggested.toLowerCase());
+                    return (
+                      <button
+                        key={suggested}
+                        type="button"
+                        onClick={() => (isAdded ? handleRemoveTag(suggested) : handleAddTag(suggested))}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                          isAdded
+                            ? 'bg-[#007979] text-white shadow-xs'
+                            : 'bg-white border border-[#E5E7EB] text-[#4B5563] hover:border-[#007979] hover:text-[#007979]'
+                        }`}
+                      >
+                        {isAdded ? `✓ #${suggested}` : `+ #${suggested}`}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Funding Goal Amount */}

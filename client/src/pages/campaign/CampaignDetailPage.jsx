@@ -205,6 +205,20 @@ export default function CampaignDetailPage() {
           </div>
 
           <div className="space-y-3">
+            {campaign.tags && campaign.tags.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                {campaign.tags.map((t, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => navigate(`/dashboard?search=${encodeURIComponent('#' + t)}`)}
+                    className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-[#007979]/10 text-[#007979] border border-[#007979]/20 hover:bg-[#007979] hover:text-white transition-all cursor-pointer"
+                  >
+                    #{t}
+                  </button>
+                ))}
+              </div>
+            )}
             <h1 className="text-2xl sm:text-4xl font-extrabold text-[#1F2937] leading-tight">
               {title}
             </h1>

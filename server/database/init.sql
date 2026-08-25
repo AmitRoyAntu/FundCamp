@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
     password VARCHAR(255) NOT NULL,
     department VARCHAR(255) NOT NULL,
     user_type VARCHAR(50) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS campaigns (
@@ -18,8 +18,19 @@ CREATE TABLE IF NOT EXISTS campaigns (
     department VARCHAR(255) DEFAULT 'University Department',
     image TEXT,
     goal_amount NUMERIC(12, 2) NOT NULL CHECK (goal_amount > 0),
+    amount_raised NUMERIC(12, 2) DEFAULT 0.00 CHECK (amount_raised >= 0),
+    tags TEXT[] DEFAULT '{}',
     creator_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS donations (
+    id SERIAL PRIMARY KEY,
+    campaign_id INTEGER NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+    donor_name VARCHAR(255) DEFAULT 'Anonymous Backer',
+    amount NUMERIC(12, 2) NOT NULL CHECK (amount > 0),
+    payment_method VARCHAR(50) DEFAULT 'bKash',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS campaign_updates (
@@ -27,7 +38,7 @@ CREATE TABLE IF NOT EXISTS campaign_updates (
     campaign_id INTEGER NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL,
     content TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS campaign_comments (
@@ -35,5 +46,11 @@ CREATE TABLE IF NOT EXISTS campaign_comments (
     campaign_id INTEGER NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     content TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Performance Indexes on Foreign Keys & Search
+CREATE INDEX IF NOT EXISTS idx_campaigns_creator ON campaigns(creator_id);
+CREATE INDEX IF NOT EXISTS idx_donations_campaign ON donations(campaign_id);
+CREATE INDEX IF NOT EXISTS idx_updates_campaign ON campaign_updates(campaign_id);
+CREATE INDEX IF NOT EXISTS idx_comments_campaign ON campaign_comments(campaign_id);

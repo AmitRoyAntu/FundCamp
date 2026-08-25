@@ -36,6 +36,8 @@ const inMemoryStore = {
       id: 1,
       title: 'Robotics Lab Equipment Upgrade',
       description: 'Funding for high-precision sensors and microcontrollers for the university robotics competition team.',
+      category: 'Research',
+      tags: ['Robotics', 'Hardware', 'Microcontrollers', 'Competition'],
       goal_amount: 5001,
       creator_id: 2,
       created_at: new Date().toISOString()
@@ -44,6 +46,8 @@ const inMemoryStore = {
       id: 2,
       title: 'Student Emergency Medical Support Fund',
       description: 'Raising funds to support fellow student Sarah who needs urgent cardiac procedure assistance.',
+      category: 'Medical',
+      tags: ['MedicalEmergency', 'StudentAid', 'Urgent'],
       goal_amount: 12000,
       creator_id: 1,
       created_at: new Date().toISOString()
