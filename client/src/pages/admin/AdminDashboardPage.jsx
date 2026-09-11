@@ -13,6 +13,7 @@ import { DEPARTMENTS } from '../../constants/userTypes';
 import { useAuth } from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
 import {
+  LayoutDashboard,
   ShieldCheck,
   Clock,
   CheckCircle2,
@@ -43,13 +44,18 @@ import {
   Users,
   AlertTriangle,
   FileWarning,
+  Activity,
+  ArrowUpRight,
+  Sparkles,
+  Calendar,
+  Check,
 } from 'lucide-react';
 
 export default function AdminDashboardPage() {
   const { currentUser } = useAuth();
 
-  // Main Tab State: 'queue' | 'reports' | 'users' | 'expenses' | 'analytics'
-  const [activeTab, setActiveTab] = useState('queue');
+  // Active Tab State: 'overview' | 'queue' | 'reports' | 'users' | 'expenses' | 'campaigns'
+  const [activeTab, setActiveTab] = useState('overview');
 
   // Loading States
   const [loading, setLoading] = useState(true);
@@ -63,7 +69,7 @@ export default function AdminDashboardPage() {
   const [reports, setReports] = useState([]);
   const [users, setUsers] = useState([]);
 
-  // Queue Filter States
+  // Verification Queue Filter States
   const [statusFilter, setStatusFilter] = useState('pending'); // 'pending' | 'approved' | 'rejected' | 'all'
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -71,6 +77,7 @@ export default function AdminDashboardPage() {
 
   // Reports Filter States
   const [reportStatusFilter, setReportStatusFilter] = useState('pending'); // 'pending' | 'resolved' | 'dismissed' | 'all'
+  const [reportSearchQuery, setReportSearchQuery] = useState('');
 
   // Users Filter States
   const [userStatusFilter, setUserStatusFilter] = useState('all'); // 'all' | 'active' | 'deactivated'
@@ -79,6 +86,9 @@ export default function AdminDashboardPage() {
 
   // Expense Filter States
   const [expenseStatusFilter, setExpenseStatusFilter] = useState('all');
+
+  // Campaign Directory Search
+  const [campaignDirectorySearch, setCampaignDirectorySearch] = useState('');
 
   // Selected Campaign for Document Modal
   const [selectedCampaign, setSelectedCampaign] = useState(null);
@@ -99,10 +109,10 @@ export default function AdminDashboardPage() {
         adminService.getUsers({ status: 'all' }),
       ]);
       setStats(statsData);
-      setCampaigns(campaignsData);
-      setExpenses(expensesData);
-      setReports(reportsData);
-      setUsers(usersData);
+      setCampaigns(campaignsData || []);
+      setExpenses(expensesData || []);
+      setReports(reportsData || []);
+      setUsers(usersData || []);
     } catch (err) {
       toast.error(err.message || 'Failed to load administrative data');
     } finally {
@@ -121,10 +131,10 @@ export default function AdminDashboardPage() {
         adminService.getUsers({ status: 'all' }),
       ]);
       setStats(statsData);
-      setCampaigns(campaignsData);
-      setExpenses(expensesData);
-      setReports(reportsData);
-      setUsers(usersData);
+      setCampaigns(campaignsData || []);
+      setExpenses(expensesData || []);
+      setReports(reportsData || []);
+      setUsers(usersData || []);
       toast.success('Admin data refreshed successfully');
     } catch (err) {
       toast.error('Failed to refresh data');
@@ -227,8 +237,8 @@ export default function AdminDashboardPage() {
 
   // Handle Fraud Report Resolution
   const handleResolveReport = async (reportId, status) => {
-    const defaultNote = status === 'resolved' 
-      ? 'Investigation complete. Corrective administrative action taken.' 
+    const defaultNote = status === 'resolved'
+      ? 'Investigation complete. Corrective administrative action taken.'
       : 'Report reviewed and dismissed. No violation detected.';
     const adminNotes = window.prompt(`Enter administrative investigation findings for this report:`, defaultNote);
     if (adminNotes === null) return;
@@ -296,8 +306,8 @@ export default function AdminDashboardPage() {
     const query = searchQuery.toLowerCase().trim();
     const searchMatch =
       !query ||
-      c.title.toLowerCase().includes(query) ||
-      c.description.toLowerCase().includes(query) ||
+      c.title?.toLowerCase().includes(query) ||
+      c.description?.toLowerCase().includes(query) ||
       c.creator_name?.toLowerCase().includes(query);
 
     return statusMatch && categoryMatch && deptMatch && searchMatch;
@@ -305,8 +315,15 @@ export default function AdminDashboardPage() {
 
   // Filtered Reports
   const filteredReports = reports.filter((r) => {
-    if (reportStatusFilter === 'all') return true;
-    return (r.status || 'pending') === reportStatusFilter;
+    const statusMatch = reportStatusFilter === 'all' || (r.status || 'pending') === reportStatusFilter;
+    const query = reportSearchQuery.toLowerCase().trim();
+    const searchMatch =
+      !query ||
+      r.campaign_title?.toLowerCase().includes(query) ||
+      r.reason?.toLowerCase().includes(query) ||
+      r.description?.toLowerCase().includes(query) ||
+      r.reporter_name?.toLowerCase().includes(query);
+    return statusMatch && searchMatch;
   });
 
   // Filtered Users
@@ -316,8 +333,8 @@ export default function AdminDashboardPage() {
     const query = userSearchQuery.toLowerCase().trim();
     const searchMatch =
       !query ||
-      u.name.toLowerCase().includes(query) ||
-      u.email.toLowerCase().includes(query) ||
+      u.name?.toLowerCase().includes(query) ||
+      u.email?.toLowerCase().includes(query) ||
       (u.university_id && u.university_id.toLowerCase().includes(query));
 
     return statusMatch && deptMatch && searchMatch;
@@ -327,6 +344,18 @@ export default function AdminDashboardPage() {
   const filteredExpenses = expenses.filter((e) => {
     if (expenseStatusFilter === 'all') return true;
     return e.status === expenseStatusFilter;
+  });
+
+  // Filtered Master Campaign Directory
+  const filteredDirectoryCampaigns = campaigns.filter((c) => {
+    const query = campaignDirectorySearch.toLowerCase().trim();
+    return (
+      !query ||
+      c.title?.toLowerCase().includes(query) ||
+      c.creator_name?.toLowerCase().includes(query) ||
+      c.category?.toLowerCase().includes(query) ||
+      c.department?.toLowerCase().includes(query)
+    );
   });
 
   // Count helper metrics
@@ -342,17 +371,84 @@ export default function AdminDashboardPage() {
   const activeUsersCount = users.filter((u) => (u.status || 'active') === 'active').length;
 
   const pendingExpensesCount = expenses.filter((e) => e.status === 'pending').length;
+  const verifiedExpensesCount = expenses.filter((e) => e.status === 'verified').length;
+
+  const totalRaised = stats?.campaigns?.totalRaised ?? campaigns.reduce((acc, c) => acc + (parseFloat(c.amount_raised) || 0), 0);
+  const totalGoal = stats?.campaigns?.totalGoal ?? campaigns.reduce((acc, c) => acc + (parseFloat(c.goal_amount) || 0), 0);
+  const goalPercentage = totalGoal > 0 ? Math.min(100, Math.round((totalRaised / totalGoal) * 100)) : 0;
+
+  // Monthly Volume for Bar Chart
+  const monthlyData = stats?.monthlyVolume || [
+    { month: 'Oct', volume: 1500, count: 4 },
+    { month: 'Nov', volume: 2200, count: 6 },
+    { month: 'Dec', volume: 3800, count: 9 },
+    { month: 'Jan', volume: 5400, count: 14 },
+    { month: 'Feb', volume: 8200, count: 19 },
+    { month: 'Mar', volume: totalRaised || 11700, count: campaigns.length || 4 },
+  ];
+  const maxMonthVolume = Math.max(...monthlyData.map((m) => m.volume), 1);
+
+  // Sidebar navigation tabs definition
+  const sidebarItems = [
+    {
+      id: 'overview',
+      label: 'Platform Overview',
+      icon: LayoutDashboard,
+      badge: null,
+      description: 'System stats & charts',
+    },
+    {
+      id: 'queue',
+      label: 'Verification Queue',
+      icon: ShieldCheck,
+      badge: pendingCampaignsCount,
+      badgeColor: 'amber',
+      description: 'Review pending initiatives',
+    },
+    {
+      id: 'reports',
+      label: 'Fraud & Moderation',
+      icon: ShieldAlert,
+      badge: pendingReportsCount,
+      badgeColor: 'red',
+      description: 'Investigate complaints',
+    },
+    {
+      id: 'users',
+      label: 'Campus Accounts',
+      icon: Users,
+      badge: deactivatedUsersCount > 0 ? `${deactivatedUsersCount} Suspended` : null,
+      badgeColor: 'gray',
+      description: 'Student & faculty access',
+    },
+    {
+      id: 'expenses',
+      label: 'Expense Receipts',
+      icon: Receipt,
+      badge: pendingExpensesCount,
+      badgeColor: 'blue',
+      description: 'Financial accountability',
+    },
+    {
+      id: 'campaigns',
+      label: 'Campaign Directory',
+      icon: Layers,
+      badge: campaigns.length,
+      badgeColor: 'teal',
+      description: 'Manage & direct removal',
+    },
+  ];
 
   if (loading) {
     return <Loader text="Loading University Administration Hub..." />;
   }
 
   return (
-    <div className="space-y-8 pb-16">
-      {/* Page Header */}
+    <div className="space-y-6 pb-16">
+      {/* Top Header */}
       <PageHeader
         title="University Verification & Moderation Hub"
-        description="Official administration gateway to verify campaigns, manage user accounts, resolve fraud reports, and audit financial transparency."
+        description="Official campus administration gateway to monitor platform metrics, verify submitted initiatives, resolve policy reports, and oversee user governance."
       >
         <Button
           variant="outline"
@@ -365,1175 +461,1374 @@ export default function AdminDashboardPage() {
         </Button>
       </PageHeader>
 
-      {/* Top KPI Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Metric 1: Pending Campaigns Queue */}
-        <Card className="p-5 border-l-4 border-l-amber-500 bg-white shadow-xs">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                Verification Queue
+      {/* Main Two-Column Layout: Left Side Navbar + Right Content */}
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
+        {/* ========================================================================= */}
+        {/* LEFT SIDE NAVBAR (STICKY DESKTOP, HORIZONTAL MOBILE) */}
+        {/* ========================================================================= */}
+        <aside className="w-full lg:w-72 xl:w-80 shrink-0">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-xs p-4 sticky top-20 space-y-4">
+            {/* Admin Profile Mini Card */}
+            <div className="p-3 bg-gradient-to-br from-[#007979]/10 to-[#24B1B1]/5 rounded-xl border border-[#007979]/20 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#007979] text-white flex items-center justify-center font-bold text-sm shadow-xs">
+                ADM
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <p className="text-xs font-bold text-gray-900 truncate">
+                    {currentUser?.fullName || 'Campus Administrator'}
+                  </p>
+                  <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-[#007979] text-white">
+                    PORTAL
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-500 truncate">
+                  {currentUser?.department || 'Student Affairs & Research'}
+                </p>
+              </div>
+            </div>
+
+            {/* Navigation Menu Links */}
+            <div className="space-y-1">
+              <p className="px-3 py-1 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                Management Modules
               </p>
-              <h3 className="text-3xl font-extrabold text-gray-900 mt-1">
-                {stats?.campaigns?.pending ?? pendingCampaignsCount}
-              </h3>
-              <p className="text-xs text-amber-600 font-semibold mt-1">
-                Campaigns Awaiting Clearance
-              </p>
-            </div>
-            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
-              <Clock className="w-6 h-6" />
-            </div>
-          </div>
-        </Card>
-
-        {/* Metric 2: Fraud & Moderation Reports */}
-        <Card className={`p-5 border-l-4 ${pendingReportsCount > 0 ? 'border-l-red-500' : 'border-l-gray-300'} bg-white shadow-xs`}>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                Fraud & Policy Reports
-              </p>
-              <h3 className={`text-3xl font-extrabold ${pendingReportsCount > 0 ? 'text-red-600' : 'text-gray-900'} mt-1`}>
-                {stats?.reports?.pending ?? pendingReportsCount}
-              </h3>
-              <p className="text-xs text-red-600 font-semibold mt-1">
-                {pendingReportsCount > 0 ? 'Urgent Investigation Needed' : 'No Pending Complaints'}
-              </p>
-            </div>
-            <div className={`w-12 h-12 rounded-2xl ${pendingReportsCount > 0 ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-500'} flex items-center justify-center`}>
-              <ShieldAlert className="w-6 h-6" />
-            </div>
-          </div>
-        </Card>
-
-        {/* Metric 3: Campus User Accounts */}
-        <Card className="p-5 border-l-4 border-l-[#007979] bg-white shadow-xs">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                Campus Accounts
-              </p>
-              <h3 className="text-3xl font-extrabold text-[#007979] mt-1">
-                {users.length}
-              </h3>
-              <p className="text-xs text-gray-500 font-medium mt-1">
-                {activeUsersCount} Active • <span className={deactivatedUsersCount > 0 ? 'text-red-600 font-bold' : ''}>{deactivatedUsersCount} Suspended</span>
-              </p>
-            </div>
-            <div className="w-12 h-12 rounded-2xl bg-[#007979]/10 text-[#007979] flex items-center justify-center">
-              <Users className="w-6 h-6" />
-            </div>
-          </div>
-        </Card>
-
-        {/* Metric 4: Total Funds Raised */}
-        <Card className="p-5 border-l-4 border-l-[#E37434] bg-white shadow-xs">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                Total Raised Volume
-              </p>
-              <h3 className="text-2xl font-extrabold text-gray-900 mt-1">
-                {formatCurrency(stats?.campaigns?.totalRaised ?? 0)}
-              </h3>
-              <p className="text-xs text-gray-500 mt-1">
-                Verified Backer Volume
-              </p>
-            </div>
-            <div className="w-12 h-12 rounded-2xl bg-[#E37434]/10 text-[#E37434] flex items-center justify-center">
-              <Coins className="w-6 h-6" />
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Main Tab Navigation Bar */}
-      <div className="flex border-b border-gray-200 overflow-x-auto">
-        <button
-          type="button"
-          onClick={() => setActiveTab('queue')}
-          className={`flex items-center gap-2 px-5 py-3.5 text-sm font-bold border-b-2 transition-colors shrink-0 cursor-pointer ${
-            activeTab === 'queue'
-              ? 'border-[#007979] text-[#007979]'
-              : 'border-transparent text-gray-500 hover:text-gray-800'
-          }`}
-        >
-          <ShieldCheck className="w-4.5 h-4.5" />
-          <span>Verification Queue</span>
-          {pendingCampaignsCount > 0 && (
-            <span className="px-2 py-0.5 rounded-full text-xs font-extrabold bg-amber-100 text-amber-800">
-              {pendingCampaignsCount}
-            </span>
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('reports')}
-          className={`flex items-center gap-2 px-5 py-3.5 text-sm font-bold border-b-2 transition-colors shrink-0 cursor-pointer ${
-            activeTab === 'reports'
-              ? 'border-red-600 text-red-600'
-              : 'border-transparent text-gray-500 hover:text-gray-800'
-          }`}
-        >
-          <ShieldAlert className="w-4.5 h-4.5" />
-          <span>Fraud & Moderation Reports</span>
-          {pendingReportsCount > 0 && (
-            <span className="px-2 py-0.5 rounded-full text-xs font-extrabold bg-red-100 text-red-800 animate-pulse">
-              {pendingReportsCount}
-            </span>
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('users')}
-          className={`flex items-center gap-2 px-5 py-3.5 text-sm font-bold border-b-2 transition-colors shrink-0 cursor-pointer ${
-            activeTab === 'users'
-              ? 'border-[#007979] text-[#007979]'
-              : 'border-transparent text-gray-500 hover:text-gray-800'
-          }`}
-        >
-          <Users className="w-4.5 h-4.5" />
-          <span>User Accounts</span>
-          {deactivatedUsersCount > 0 && (
-            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-red-600">
-              {deactivatedUsersCount} Suspended
-            </span>
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('expenses')}
-          className={`flex items-center gap-2 px-5 py-3.5 text-sm font-bold border-b-2 transition-colors shrink-0 cursor-pointer ${
-            activeTab === 'expenses'
-              ? 'border-[#007979] text-[#007979]'
-              : 'border-transparent text-gray-500 hover:text-gray-800'
-          }`}
-        >
-          <Receipt className="w-4.5 h-4.5" />
-          <span>Expense Receipts</span>
-          {pendingExpensesCount > 0 && (
-            <span className="px-2 py-0.5 rounded-full text-xs font-extrabold bg-blue-100 text-blue-800">
-              {pendingExpensesCount}
-            </span>
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('analytics')}
-          className={`flex items-center gap-2 px-5 py-3.5 text-sm font-bold border-b-2 transition-colors shrink-0 cursor-pointer ${
-            activeTab === 'analytics'
-              ? 'border-[#007979] text-[#007979]'
-              : 'border-transparent text-gray-500 hover:text-gray-800'
-          }`}
-        >
-          <BarChart3 className="w-4.5 h-4.5" />
-          <span>Platform Overview & Removal</span>
-        </button>
-      </div>
-
-      {/* ========================================================================= */}
-      {/* TAB 1: DOCUMENT-VERIFICATION QUEUE */}
-      {/* ========================================================================= */}
-      {activeTab === 'queue' && (
-        <div className="space-y-6">
-          {/* Status Sub-filter Pills */}
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-gray-200 shadow-xs">
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setStatusFilter('pending')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  statusFilter === 'pending'
-                    ? 'bg-amber-500 text-white shadow-xs'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                Needs Review ({pendingCampaignsCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatusFilter('approved')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  statusFilter === 'approved'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                Approved ({approvedCampaignsCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatusFilter('rejected')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  statusFilter === 'rejected'
-                    ? 'bg-red-600 text-white shadow-xs'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                Rejected ({rejectedCampaignsCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatusFilter('all')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  statusFilter === 'all'
-                    ? 'bg-[#007979] text-white shadow-xs'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                All Campaigns ({campaigns.length})
-              </button>
-            </div>
-
-            <div className="text-xs text-gray-500 font-medium">
-              Showing <span className="font-bold text-gray-900">{filteredCampaigns.length}</span> campaigns
-            </div>
-          </div>
-
-          {/* Search & Category Filter */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-white p-4 rounded-2xl border border-gray-200 shadow-xs">
-            <div className="md:col-span-1">
-              <SearchBar
-                value={searchQuery}
-                onChange={setSearchQuery}
-                placeholder="Search title, creator, story..."
-              />
-            </div>
-
-            <div>
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#24B1B1]"
-              >
-                <option value="All">All Categories</option>
-                {CAMPAIGN_CATEGORIES.map((cat) => (
-                  <option key={cat.id || cat} value={cat.id || cat}>
-                    {cat.label || cat}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <select
-                value={selectedDepartment}
-                onChange={(e) => setSelectedDepartment(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#24B1B1]"
-              >
-                <option value="All">All Departments</option>
-                {DEPARTMENTS.map((dept) => (
-                  <option key={dept} value={dept}>
-                    {dept}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Verification Cards */}
-          {filteredCampaigns.length === 0 ? (
-            <EmptyState
-              title="No campaigns match current filter"
-              description="There are currently no campaigns matching the selected status or search parameters."
-              actionLabel="Reset Queue Filters"
-              onAction={() => {
-                setStatusFilter('pending');
-                setSearchQuery('');
-                setSelectedCategory('All');
-                setSelectedDepartment('All');
-              }}
-            />
-          ) : (
-            <div className="space-y-3">
-              {filteredCampaigns.map((camp) => {
-                const docs = Array.isArray(camp.documents) ? camp.documents : [];
-                const status = camp.status || 'pending';
-
+              {sidebarItems.map((item) => {
+                const Icon = item.icon;
+                const isSelected = activeTab === item.id;
                 return (
-                  <Card
-                    key={camp.id}
-                    className="p-5 hover:shadow-md transition-shadow border border-gray-200"
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setActiveTab(item.id)}
+                    className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer text-left ${
+                      isSelected
+                        ? 'bg-[#007979] text-white shadow-xs font-bold'
+                        : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
                   >
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                      {/* Left: Thumbnail & Core Info */}
-                      <div className="flex items-start gap-4 flex-1 min-w-0">
-                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden bg-gray-100 shrink-0 border border-gray-200">
-                          <img
-                            src={camp.image || 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=300'}
-                            alt={camp.title}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Icon
+                        className={`w-4.5 h-4.5 shrink-0 ${
+                          isSelected ? 'text-white' : 'text-[#007979]'
+                        }`}
+                      />
+                      <div className="truncate">
+                        <p className="leading-tight truncate">{item.label}</p>
+                        <p
+                          className={`text-[11px] font-normal truncate ${
+                            isSelected ? 'text-white/80' : 'text-gray-400'
+                          }`}
+                        >
+                          {item.description}
+                        </p>
+                      </div>
+                    </div>
 
-                        <div className="space-y-1.5 min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-[#007979]/10 text-[#007979]">
-                              {camp.category || 'Education'}
+                    {item.badge !== null && item.badge !== undefined && (
+                      <span
+                        className={`ml-2 px-2 py-0.5 rounded-full text-xs font-extrabold shrink-0 ${
+                          isSelected
+                            ? 'bg-white/20 text-white'
+                            : item.badgeColor === 'red'
+                            ? 'bg-red-100 text-red-700 animate-pulse'
+                            : item.badgeColor === 'amber'
+                            ? 'bg-amber-100 text-amber-800'
+                            : item.badgeColor === 'blue'
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-gray-100 text-gray-600'
+                        }`}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Quick Status Pill */}
+            <div className="pt-3 border-t border-gray-100 px-2 space-y-2">
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                  <span>Platform Gateway</span>
+                </span>
+                <span className="font-bold text-emerald-600">Online</span>
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-gray-400">
+                <span>Total Campaigns:</span>
+                <span className="font-semibold text-gray-700">{campaigns.length}</span>
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-gray-400">
+                <span>Raised Volume:</span>
+                <span className="font-bold text-[#E37434]">{formatCurrency(totalRaised)}</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        {/* ========================================================================= */}
+        {/* RIGHT WORKSPACE AREA */}
+        {/* ========================================================================= */}
+        <main className="flex-1 min-w-0 w-full space-y-6">
+          {/* ========================================================================= */}
+          {/* MODULE 1: PLATFORM OVERVIEW (COMBINED COMPREHENSIVE DASHBOARD) */}
+          {/* ========================================================================= */}
+          {activeTab === 'overview' && (
+            <div className="space-y-6">
+              {/* Urgent Action Center / Triage Banners */}
+              {(pendingCampaignsCount > 0 || pendingReportsCount > 0 || pendingExpensesCount > 0) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {pendingCampaignsCount > 0 && (
+                    <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200/80 flex items-center justify-between gap-3 shadow-xs">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                          <Clock className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-amber-900">
+                            {pendingCampaignsCount} Campaign{pendingCampaignsCount > 1 ? 's' : ''} Awaiting Clearance
+                          </p>
+                          <p className="text-xs text-amber-700">
+                            Review documents before public publication
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setActiveTab('queue')}
+                        className="bg-white border-amber-300 text-amber-800 hover:bg-amber-100 shrink-0"
+                      >
+                        Open Queue →
+                      </Button>
+                    </div>
+                  )}
+
+                  {pendingReportsCount > 0 && (
+                    <div className="p-4 rounded-2xl bg-red-50/80 border border-red-200/80 flex items-center justify-between gap-3 shadow-xs">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                          <ShieldAlert className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-red-900">
+                            {pendingReportsCount} Fraud Complaint Pending
+                          </p>
+                          <p className="text-xs text-red-700">
+                            Urgent policy violation filed by campus member
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setActiveTab('reports')}
+                        className="bg-white border-red-300 text-red-800 hover:bg-red-100 shrink-0"
+                      >
+                        Investigate →
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 4 Core KPI Summary Cards (The Upper Screenshot Cards) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Metric 1: Verification Queue */}
+                <Card
+                  className="p-5 border-l-4 border-l-amber-500 bg-white shadow-xs cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => setActiveTab('queue')}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        Verification Queue
+                      </p>
+                      <h3 className="text-3xl font-extrabold text-gray-900 mt-1">
+                        {pendingCampaignsCount}
+                      </h3>
+                      <p className="text-xs text-amber-600 font-semibold mt-1">
+                        Campaigns Awaiting Clearance
+                      </p>
+                    </div>
+                    <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                      <Clock className="w-6 h-6" />
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Metric 2: Fraud & Moderation Reports */}
+                <Card
+                  className={`p-5 border-l-4 ${pendingReportsCount > 0 ? 'border-l-red-500' : 'border-l-gray-300'} bg-white shadow-xs cursor-pointer hover:shadow-md transition-shadow`}
+                  onClick={() => setActiveTab('reports')}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        Fraud & Policy Reports
+                      </p>
+                      <h3 className={`text-3xl font-extrabold ${pendingReportsCount > 0 ? 'text-red-600' : 'text-gray-900'} mt-1`}>
+                        {pendingReportsCount}
+                      </h3>
+                      <p className="text-xs text-red-600 font-semibold mt-1">
+                        {pendingReportsCount > 0 ? 'Urgent Investigation Needed' : 'No Pending Complaints'}
+                      </p>
+                    </div>
+                    <div className={`w-12 h-12 rounded-2xl ${pendingReportsCount > 0 ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-500'} flex items-center justify-center`}>
+                      <ShieldAlert className="w-6 h-6" />
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Metric 3: Campus User Accounts */}
+                <Card
+                  className="p-5 border-l-4 border-l-[#007979] bg-white shadow-xs cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => setActiveTab('users')}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        Campus Accounts
+                      </p>
+                      <h3 className="text-3xl font-extrabold text-[#007979] mt-1">
+                        {users.length}
+                      </h3>
+                      <p className="text-xs text-gray-500 font-medium mt-1">
+                        {activeUsersCount} Active • <span className={deactivatedUsersCount > 0 ? 'text-red-600 font-bold' : ''}>{deactivatedUsersCount} Suspended</span>
+                      </p>
+                    </div>
+                    <div className="w-12 h-12 rounded-2xl bg-[#007979]/10 text-[#007979] flex items-center justify-center">
+                      <Users className="w-6 h-6" />
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Metric 4: Total Raised Volume */}
+                <Card className="p-5 border-l-4 border-l-[#E37434] bg-white shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        Total Raised Volume
+                      </p>
+                      <h3 className="text-2xl font-extrabold text-gray-900 mt-1">
+                        {formatCurrency(totalRaised)}
+                      </h3>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Target: {formatCurrency(totalGoal)} ({goalPercentage}%)
+                      </p>
+                    </div>
+                    <div className="w-12 h-12 rounded-2xl bg-[#E37434]/10 text-[#E37434] flex items-center justify-center">
+                      <Coins className="w-6 h-6" />
+                    </div>
+                  </div>
+                </Card>
+              </div>
+
+              {/* Month-by-Month Fundraising Volume Bar Chart */}
+              <Card className="p-6 border border-gray-200 shadow-xs space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="w-5 h-5 text-[#007979]" />
+                      <h3 className="text-lg font-bold text-gray-900">
+                        Monthly Backing Volume & Trend Analysis
+                      </h3>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Platform-wide verified monthly capital contributions across student, faculty, and research initiatives.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <TrendingUp className="w-3.5 h-3.5" />
+                      +42.7% MoM Growth
+                    </span>
+                    <span className="text-xs font-semibold text-gray-500">
+                      Last 6 Months
+                    </span>
+                  </div>
+                </div>
+
+                {/* SVG/CSS Interactive Bar Chart */}
+                <div className="space-y-2">
+                  <div className="h-60 flex items-end justify-between gap-3 pt-8 pb-2 px-4 bg-gray-50/70 rounded-2xl border border-gray-100">
+                    {monthlyData.map((item, idx) => {
+                      const heightPercent = Math.max(12, Math.round((item.volume / maxMonthVolume) * 100));
+                      const isCurrentMonth = idx === monthlyData.length - 1;
+
+                      return (
+                        <div
+                          key={item.month}
+                          className="flex-1 flex flex-col items-center h-full justify-end group relative"
+                        >
+                          {/* Tooltip on Hover */}
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-9 bg-gray-900 text-white text-[11px] font-bold py-1 px-2.5 rounded-lg whitespace-nowrap pointer-events-none shadow-md z-10">
+                            {item.month}: {formatCurrency(item.volume)}
+                            <div className="text-[9px] text-gray-300 font-normal">
+                              {item.count} campaigns active
+                            </div>
+                          </div>
+
+                          {/* Bar Fill */}
+                          <div className="w-full max-w-[48px] flex flex-col items-center">
+                            <span className="text-[11px] font-bold mb-1 text-gray-700 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {formatCurrency(item.volume)}
                             </span>
+                            <div
+                              className={`w-full rounded-t-xl transition-all duration-500 group-hover:scale-y-105 origin-bottom ${
+                                isCurrentMonth
+                                  ? 'bg-gradient-to-t from-[#007979] to-[#24B1B1] shadow-xs'
+                                  : 'bg-gradient-to-t from-gray-300 to-[#007979]/40 group-hover:from-[#007979]/60 group-hover:to-[#24B1B1]/70'
+                              }`}
+                              style={{ height: `${heightPercent}%` }}
+                            />
+                          </div>
+
+                          {/* Month Label */}
+                          <span className={`text-xs mt-2 font-semibold ${isCurrentMonth ? 'text-[#007979] font-bold' : 'text-gray-500'}`}>
+                            {item.month}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Progress Meter: Goal vs Raised */}
+                <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 space-y-2">
+                  <div className="flex justify-between text-xs font-bold text-gray-700">
+                    <span>Overall Platform Goal Progress</span>
+                    <span className="text-[#E37434]">
+                      {formatCurrency(totalRaised)} / {formatCurrency(totalGoal)} ({goalPercentage}%)
+                    </span>
+                  </div>
+                  <div className="w-full h-3 rounded-full bg-gray-200 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-[#007979] via-[#24B1B1] to-[#E37434] transition-all duration-500"
+                      style={{ width: `${goalPercentage}%` }}
+                    />
+                  </div>
+                </div>
+              </Card>
+
+              {/* Two-Column Breakdown: Categories & Departments */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Category Distribution */}
+                <Card className="p-6 border border-gray-200 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                      <Layers className="w-5 h-5 text-[#007979]" />
+                      Campaigns by Category
+                    </h3>
+                    <span className="text-xs text-gray-500 font-semibold">
+                      {campaigns.length} Total
+                    </span>
+                  </div>
+                  <div className="space-y-3">
+                    {Object.entries(stats?.categoryDistribution || {}).map(([category, count]) => {
+                      const pct = Math.round((count / (campaigns.length || 1)) * 100);
+                      return (
+                        <div key={category} className="space-y-1">
+                          <div className="flex justify-between text-xs font-semibold">
+                            <span className="text-gray-700">{category}</span>
+                            <span className="text-[#007979]">
+                              {count} campaign{count > 1 ? 's' : ''} ({pct}%)
+                            </span>
+                          </div>
+                          <div className="w-full h-2 rounded-full bg-gray-100 overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-[#007979]"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Card>
+
+                {/* Department Distribution */}
+                <Card className="p-6 border border-gray-200 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                      <Building2 className="w-5 h-5 text-[#E37434]" />
+                      Campaigns by Academic Department
+                    </h3>
+                    <span className="text-xs text-gray-500 font-semibold">
+                      Campus Origin
+                    </span>
+                  </div>
+                  <div className="space-y-3">
+                    {Object.entries(stats?.departmentDistribution || {}).map(([dept, count]) => {
+                      const pct = Math.round((count / (campaigns.length || 1)) * 100);
+                      return (
+                        <div key={dept} className="space-y-1">
+                          <div className="flex justify-between text-xs font-semibold">
+                            <span className="text-gray-700 truncate max-w-[240px]">{dept}</span>
+                            <span className="text-[#E37434]">
+                              {count} ({pct}%)
+                            </span>
+                          </div>
+                          <div className="w-full h-2 rounded-full bg-gray-100 overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-[#E37434]"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Card>
+              </div>
+
+              {/* Recent Platform Activity Audit Feed */}
+              <Card className="p-6 border border-gray-200 shadow-xs space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-[#007979]" />
+                    <h3 className="text-base font-bold text-gray-900">
+                      Recent Administrative & Campus Activities
+                    </h3>
+                  </div>
+                  <span className="text-xs text-gray-400">Live Audit Trail</span>
+                </div>
+
+                <div className="divide-y divide-gray-100">
+                  {(stats?.recentActivity || []).map((act) => (
+                    <div key={act.id} className="py-3 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                            act.type === 'report'
+                              ? 'bg-red-50 text-red-600'
+                              : act.type === 'expense'
+                              ? 'bg-blue-50 text-blue-600'
+                              : 'bg-amber-50 text-amber-600'
+                          }`}
+                        >
+                          {act.type === 'report' ? (
+                            <ShieldAlert className="w-4 h-4" />
+                          ) : act.type === 'expense' ? (
+                            <Receipt className="w-4 h-4" />
+                          ) : (
+                            <Clock className="w-4 h-4" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 truncate">
+                            {act.title}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            By <span className="font-medium text-gray-700">{act.actor}</span> • {act.time}
+                          </p>
+                        </div>
+                      </div>
+
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider shrink-0 ${
+                          act.status === 'verified' || act.status === 'resolved'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : act.status === 'pending'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-gray-100 text-gray-600'
+                        }`}
+                      >
+                        {act.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* MODULE 2: VERIFICATION QUEUE */}
+          {/* ========================================================================= */}
+          {activeTab === 'queue' && (
+            <div className="space-y-6">
+              {/* Status Sub-filter Pills */}
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-gray-200 shadow-xs">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('pending')}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      statusFilter === 'pending'
+                        ? 'bg-amber-500 text-white shadow-xs'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    Needs Review ({pendingCampaignsCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('approved')}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      statusFilter === 'approved'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    Approved ({approvedCampaignsCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('rejected')}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      statusFilter === 'rejected'
+                        ? 'bg-red-600 text-white shadow-xs'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    Rejected ({rejectedCampaignsCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('all')}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      statusFilter === 'all'
+                        ? 'bg-[#007979] text-white shadow-xs'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    All Campaigns ({campaigns.length})
+                  </button>
+                </div>
+
+                <div className="text-xs text-gray-500 font-medium">
+                  Showing <span className="font-bold text-gray-900">{filteredCampaigns.length}</span> campaigns
+                </div>
+              </div>
+
+              {/* Search & Category Filter */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-white p-4 rounded-2xl border border-gray-200 shadow-xs">
+                <div className="md:col-span-1">
+                  <SearchBar
+                    value={searchQuery}
+                    onChange={setSearchQuery}
+                    placeholder="Search title, creator, story..."
+                  />
+                </div>
+
+                <div>
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#24B1B1]"
+                  >
+                    <option value="All">All Categories</option>
+                    {CAMPAIGN_CATEGORIES.map((cat) => (
+                      <option key={cat.id || cat} value={cat.id || cat}>
+                        {cat.label || cat}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <select
+                    value={selectedDepartment}
+                    onChange={(e) => setSelectedDepartment(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#24B1B1]"
+                  >
+                    <option value="All">All Departments</option>
+                    {DEPARTMENTS.map((dept) => (
+                      <option key={dept} value={dept}>
+                        {dept}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Verification Cards */}
+              {filteredCampaigns.length === 0 ? (
+                <EmptyState
+                  title="No campaigns match current filter"
+                  description="There are currently no campaigns matching the selected status or search parameters."
+                  actionLabel="Reset Queue Filters"
+                  onAction={() => {
+                    setStatusFilter('pending');
+                    setSearchQuery('');
+                    setSelectedCategory('All');
+                    setSelectedDepartment('All');
+                  }}
+                />
+              ) : (
+                <div className="space-y-3">
+                  {filteredCampaigns.map((camp) => {
+                    const docs = Array.isArray(camp.documents) ? camp.documents : [];
+                    const status = camp.status || 'pending';
+
+                    return (
+                      <Card
+                        key={camp.id}
+                        className="p-5 hover:shadow-md transition-shadow border border-gray-200"
+                      >
+                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                          {/* Left: Thumbnail & Core Info */}
+                          <div className="flex items-start gap-4 flex-1 min-w-0">
+                            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden bg-gray-100 shrink-0 border border-gray-200">
+                              <img
+                                src={camp.image || 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=300'}
+                                alt={camp.title}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+
+                            <div className="space-y-1.5 min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-[#007979]/10 text-[#007979]">
+                                  {camp.category || 'Education'}
+                                </span>
+                                <span
+                                  className={`px-2.5 py-0.5 rounded-lg text-xs font-bold uppercase tracking-wider ${
+                                    status === 'approved'
+                                      ? 'bg-emerald-100 text-emerald-800'
+                                      : status === 'rejected'
+                                      ? 'bg-red-100 text-red-800'
+                                      : 'bg-amber-100 text-amber-800'
+                                  }`}
+                                >
+                                  {status === 'approved'
+                                    ? '✓ Approved'
+                                    : status === 'rejected'
+                                    ? '✕ Rejected'
+                                    : '⏳ Pending Review'}
+                                </span>
+                                {docs.length > 0 && (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">
+                                    <FileText className="w-3.5 h-3.5" />
+                                    {docs.length} Doc{docs.length > 1 ? 's' : ''}
+                                  </span>
+                                )}
+                              </div>
+
+                              <h3 className="text-base sm:text-lg font-bold text-gray-900 leading-snug truncate">
+                                {camp.title}
+                              </h3>
+
+                              <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600">
+                                <span className="inline-flex items-center gap-1 font-semibold text-gray-900">
+                                  <User className="w-3.5 h-3.5 text-[#007979]" />
+                                  {camp.creator_name} ({camp.creator_user_type || 'Student'})
+                                </span>
+                                <span>•</span>
+                                <span className="inline-flex items-center gap-1 text-gray-600">
+                                  <Building2 className="w-3.5 h-3.5 text-gray-400" />
+                                  {camp.creator_department || camp.department}
+                                </span>
+                                <span>•</span>
+                                <span className="font-bold text-[#E37434]">
+                                  Goal: {formatCurrency(camp.goal_amount)}
+                                </span>
+                                <span>•</span>
+                                <span className="text-gray-400">
+                                  Submitted: {formatDate(camp.created_at)}
+                                </span>
+                              </div>
+
+                              {camp.admin_feedback && (
+                                <p className="text-xs text-gray-600 bg-gray-50 p-2 rounded-lg border border-gray-100 italic">
+                                  <span className="font-bold not-italic text-gray-700">Admin Note: </span>
+                                  {camp.admin_feedback}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Right: Actions */}
+                          <div className="flex items-center gap-2.5 shrink-0 self-end lg:self-center">
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => handleOpenReview(camp)}
+                              icon={Eye}
+                            >
+                              Review & Verify
+                            </Button>
+
+                            {status === 'pending' && (
+                              <>
+                                <button
+                                  type="button"
+                                  title="Quick Approve"
+                                  onClick={() => handleApproveCampaign(camp.id, 'Quick approval by university administrator.')}
+                                  className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 flex items-center justify-center transition-colors cursor-pointer"
+                                >
+                                  <CheckCircle2 className="w-5 h-5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Reject"
+                                  onClick={() => handleOpenReview(camp)}
+                                  className="w-9 h-9 rounded-xl bg-red-50 text-red-700 hover:bg-red-100 flex items-center justify-center transition-colors cursor-pointer"
+                                >
+                                  <XCircle className="w-5 h-5" />
+                                </button>
+                              </>
+                            )}
+
+                            <button
+                              type="button"
+                              title="Remove Campaign from Platform"
+                              onClick={() => handleDeleteCampaign(camp.id, camp.title)}
+                              className="w-9 h-9 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center transition-colors cursor-pointer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* MODULE 3: FRAUD & MODERATION REPORTS */}
+          {/* ========================================================================= */}
+          {activeTab === 'reports' && (
+            <div className="space-y-6">
+              {/* Sub-filters for Reports */}
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-gray-200 shadow-xs">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => setReportStatusFilter('pending')}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      reportStatusFilter === 'pending'
+                        ? 'bg-red-600 text-white shadow-xs'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    Pending Review ({pendingReportsCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReportStatusFilter('resolved')}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      reportStatusFilter === 'resolved'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    Resolved ({resolvedReportsCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReportStatusFilter('dismissed')}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      reportStatusFilter === 'dismissed'
+                        ? 'bg-gray-700 text-white shadow-xs'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    Dismissed ({dismissedReportsCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReportStatusFilter('all')}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      reportStatusFilter === 'all'
+                        ? 'bg-[#007979] text-white shadow-xs'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    All Reports ({reports.length})
+                  </button>
+                </div>
+
+                <div className="w-full sm:w-64">
+                  <SearchBar
+                    value={reportSearchQuery}
+                    onChange={setReportSearchQuery}
+                    placeholder="Search reports or reason..."
+                  />
+                </div>
+              </div>
+
+              {/* Reports List */}
+              {filteredReports.length === 0 ? (
+                <EmptyState
+                  title="No reports match this status"
+                  description="Great news! There are no outstanding fraud or policy violation complaints in this queue."
+                  actionLabel="View All Reports"
+                  onAction={() => setReportStatusFilter('all')}
+                />
+              ) : (
+                <div className="space-y-4">
+                  {filteredReports.map((rep) => {
+                    const isPending = (rep.status || 'pending') === 'pending';
+                    return (
+                      <Card
+                        key={rep.id}
+                        className={`p-6 border ${
+                          isPending ? 'border-red-200 bg-red-50/20' : 'border-gray-200'
+                        } space-y-4 shadow-xs`}
+                      >
+                        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                          <div className="space-y-2 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-red-100 text-red-800 flex items-center gap-1">
+                                <Flag className="w-3.5 h-3.5" />
+                                {rep.reason}
+                              </span>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[11px] font-bold uppercase ${
+                                  rep.status === 'resolved'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : rep.status === 'dismissed'
+                                    ? 'bg-gray-200 text-gray-700'
+                                    : 'bg-red-500 text-white animate-pulse'
+                                }`}
+                              >
+                                {rep.status || 'pending'}
+                              </span>
+                              <span className="text-xs text-gray-400">
+                                Logged: {formatDate(rep.created_at)}
+                              </span>
+                            </div>
+
+                            <h4 className="text-base font-bold text-gray-900">
+                              Target Campaign: <span className="text-[#007979]">{rep.campaign_title || `Campaign #${rep.campaign_id}`}</span>
+                            </h4>
+
+                            <div className="p-3.5 rounded-xl bg-white border border-gray-200 text-sm text-gray-800 leading-relaxed shadow-2xs">
+                              <p className="font-semibold text-xs text-gray-500 uppercase tracking-wider mb-1">
+                                Complaint Details:
+                              </p>
+                              {rep.description}
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-4 text-xs text-gray-600 pt-1">
+                              <span>
+                                <strong className="text-gray-900">Reporter:</strong> {rep.reporter_name || 'Anonymous'}{' '}
+                                {rep.reporter_email && `(${rep.reporter_email})`}
+                              </span>
+                              <span>•</span>
+                              <span>
+                                <strong className="text-gray-900">Campaign Creator:</strong> {rep.creator_name || 'Campus Creator'}
+                              </span>
+                              {rep.creator_status === 'deactivated' && (
+                                <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700 font-bold">
+                                  Creator Deactivated
+                                </span>
+                              )}
+                            </div>
+
+                            {rep.admin_notes && (
+                              <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-900">
+                                <strong className="font-bold">Investigation Findings / Action: </strong>
+                                {rep.admin_notes}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Action Controls */}
+                          <div className="flex flex-row md:flex-col gap-2 shrink-0 self-end md:self-start">
+                            {isPending && (
+                              <>
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  onClick={() => handleResolveReport(rep.id, 'resolved')}
+                                  icon={CheckCircle2}
+                                  className="!bg-emerald-600 hover:!bg-emerald-700 w-full"
+                                >
+                                  Resolve
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleResolveReport(rep.id, 'dismissed')}
+                                  icon={XCircle}
+                                  className="w-full"
+                                >
+                                  Dismiss
+                                </Button>
+                              </>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => handleTakeDownFromReport(rep.campaign_id, rep.campaign_title, rep.id)}
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold text-red-700 bg-red-100 hover:bg-red-200 border border-red-300 transition-colors flex items-center justify-center gap-1.5 cursor-pointer w-full"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Take Down Campaign</span>
+                            </button>
+
+                            {rep.creator_id && rep.creator_status !== 'deactivated' && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeactivateCreatorFromReport(rep.creator_id, rep.creator_name, rep.id)}
+                                className="px-3 py-1.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-100 hover:bg-red-50 hover:text-red-700 border border-gray-300 transition-colors flex items-center justify-center gap-1.5 cursor-pointer w-full"
+                              >
+                                <UserX className="w-3.5 h-3.5" />
+                                <span>Suspend Creator</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* MODULE 4: USER ACCOUNTS (DEACTIVATE / REACTIVATE) */}
+          {/* ========================================================================= */}
+          {activeTab === 'users' && (
+            <div className="space-y-6">
+              {/* Search & Filters for Users */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-white p-4 rounded-2xl border border-gray-200 shadow-xs">
+                <div className="md:col-span-1">
+                  <SearchBar
+                    value={userSearchQuery}
+                    onChange={setUserSearchQuery}
+                    placeholder="Search name, email, ID..."
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setUserStatusFilter('all')}
+                    className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      userStatusFilter === 'all'
+                        ? 'bg-[#007979] text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    All ({users.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUserStatusFilter('active')}
+                    className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      userStatusFilter === 'active'
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    Active ({activeUsersCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUserStatusFilter('deactivated')}
+                    className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      userStatusFilter === 'deactivated'
+                        ? 'bg-red-600 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    Suspended ({deactivatedUsersCount})
+                  </button>
+                </div>
+
+                <div>
+                  <select
+                    value={userDeptFilter}
+                    onChange={(e) => setUserDeptFilter(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-200 bg-gray-50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#24B1B1]"
+                  >
+                    <option value="All">All Departments</option>
+                    {DEPARTMENTS.map((dept) => (
+                      <option key={dept} value={dept}>
+                        {dept}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Users Table Card */}
+              <Card className="p-6 border border-gray-200 shadow-xs space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-base font-bold text-gray-900">
+                      Campus User Directory & Access Control
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      Manage campus accounts, restrict abusive campaign creators, and maintain student safety.
+                    </p>
+                  </div>
+                  <span className="text-xs font-bold text-gray-500">
+                    {filteredUsers.length} account{filteredUsers.length > 1 ? 's' : ''} shown
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        <th className="pb-3">User & Email</th>
+                        <th className="pb-3">Role & Dept</th>
+                        <th className="pb-3">University ID</th>
+                        <th className="pb-3">Status</th>
+                        <th className="pb-3 text-right">Account Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {filteredUsers.map((u) => {
+                        const isDeactivated = u.status === 'deactivated';
+                        const isSelf = String(u.id) === String(currentUser?.id);
+
+                        return (
+                          <tr key={u.id} className="hover:bg-gray-50/80 transition-colors">
+                            <td className="py-3.5 pr-4">
+                              <p className="font-bold text-gray-900">{u.name}</p>
+                              <p className="text-xs text-gray-500">{u.email}</p>
+                            </td>
+                            <td className="py-3.5 pr-4">
+                              <span className="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-[#007979]/10 text-[#007979]">
+                                {u.user_type || u.userType || 'Student'}
+                              </span>
+                              <p className="text-xs text-gray-600 mt-0.5">{u.department || 'General'}</p>
+                            </td>
+                            <td className="py-3.5 pr-4 font-mono text-xs text-gray-600">
+                              {u.university_id || 'STU-2026'}
+                            </td>
+                            <td className="py-3.5 pr-4">
+                              <span
+                                className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase ${
+                                  isDeactivated
+                                    ? 'bg-red-100 text-red-800'
+                                    : 'bg-emerald-100 text-emerald-800'
+                                }`}
+                              >
+                                {isDeactivated ? '✕ Suspended' : '✓ Active'}
+                              </span>
+                            </td>
+                            <td className="py-3.5 text-right">
+                              {isSelf ? (
+                                <span className="text-xs text-gray-400 italic">Self Account</span>
+                              ) : isDeactivated ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleToggleUserStatus(u.id, u.name, u.status)}
+                                  icon={UserCheck}
+                                  className="text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+                                >
+                                  Reactivate Access
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleToggleUserStatus(u.id, u.name, u.status)}
+                                  icon={UserX}
+                                  className="text-red-600 border-red-200 hover:bg-red-50"
+                                >
+                                  Deactivate Account
+                                </Button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* MODULE 5: EXPENSE RECEIPTS AUDIT */}
+          {/* ========================================================================= */}
+          {activeTab === 'expenses' && (
+            <div className="space-y-6">
+              {/* Filter Pills */}
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-gray-200 shadow-xs">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => setExpenseStatusFilter('all')}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      expenseStatusFilter === 'all'
+                        ? 'bg-[#007979] text-white shadow-xs'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    All Receipts ({expenses.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExpenseStatusFilter('pending')}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      expenseStatusFilter === 'pending'
+                        ? 'bg-amber-500 text-white shadow-xs'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    Pending Verification ({pendingExpensesCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExpenseStatusFilter('verified')}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      expenseStatusFilter === 'verified'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    Verified ({verifiedExpensesCount})
+                  </button>
+                </div>
+
+                <div className="text-xs text-gray-500 font-medium">
+                  Showing <span className="font-bold text-gray-900">{filteredExpenses.length}</span> receipts
+                </div>
+              </div>
+
+              {/* Expense Receipts Grid */}
+              {filteredExpenses.length === 0 ? (
+                <EmptyState
+                  title="No expense receipts found"
+                  description="There are currently no uploaded vendor invoices or receipts matching this filter."
+                  actionLabel="Show All Receipts"
+                  onAction={() => setExpenseStatusFilter('all')}
+                />
+              ) : (
+                <div className="space-y-3">
+                  {filteredExpenses.map((exp) => {
+                    const status = exp.status || 'pending';
+                    return (
+                      <Card
+                        key={exp.id}
+                        className="p-5 border border-gray-200 hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                          <div className="flex items-start gap-4 flex-1 min-w-0">
+                            {/* Receipt Thumbnail */}
+                            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-gray-100 shrink-0 border border-gray-200">
+                              {exp.receipt_url ? (
+                                <img
+                                  src={exp.receipt_url}
+                                  alt={exp.title}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                  <Receipt className="w-6 h-6" />
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="space-y-1 min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-[#007979]/10 text-[#007979]">
+                                  {exp.category || 'Expenditure'}
+                                </span>
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-[11px] font-bold uppercase ${
+                                    status === 'verified'
+                                      ? 'bg-emerald-100 text-emerald-800'
+                                      : status === 'rejected'
+                                      ? 'bg-red-100 text-red-800'
+                                      : 'bg-amber-100 text-amber-800'
+                                  }`}
+                                >
+                                  {status === 'verified'
+                                    ? '✓ Verified'
+                                    : status === 'rejected'
+                                    ? '✕ Flagged'
+                                    : '⏳ Pending Audit'}
+                                </span>
+                              </div>
+
+                              <h4 className="text-base font-bold text-gray-900 truncate">
+                                {exp.title}
+                              </h4>
+
+                              <p className="text-xs text-gray-600">
+                                Campaign: <strong className="text-gray-900">{exp.campaign_title}</strong> • Vendor: {exp.vendor}
+                              </p>
+
+                              <div className="flex items-center gap-3 text-xs text-gray-500 pt-0.5">
+                                <span className="font-bold text-[#E37434] text-sm">
+                                  {formatCurrency(exp.amount)}
+                                </span>
+                                <span>•</span>
+                                <span>Uploaded: {formatDate(exp.created_at)}</span>
+                              </div>
+
+                              {exp.admin_notes && (
+                                <p className="text-xs text-gray-600 bg-gray-50 p-2 rounded-lg border border-gray-100 italic">
+                                  <span className="font-bold not-italic text-gray-700">Audit Notes: </span>
+                                  {exp.admin_notes}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex items-center gap-2.5 shrink-0 self-end lg:self-center">
+                            {exp.receipt_url && (
+                              <a
+                                href={exp.receipt_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-[#007979] bg-[#007979]/10 hover:bg-[#007979]/20 transition-colors"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                View Invoice
+                              </a>
+                            )}
+
+                            {status !== 'verified' && (
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={() =>
+                                  handleUpdateExpenseStatus(
+                                    exp.id,
+                                    'verified',
+                                    'Verified with original invoice and expenditure declaration.'
+                                  )
+                                }
+                                icon={CheckCircle2}
+                                className="!bg-emerald-600 hover:!bg-emerald-700"
+                              >
+                                Mark Verified
+                              </Button>
+                            )}
+
+                            {status !== 'rejected' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const notes = window.prompt(
+                                    'Enter audit note / reason for flagging this receipt:'
+                                  );
+                                  if (notes !== null) {
+                                    handleUpdateExpenseStatus(exp.id, 'rejected', notes);
+                                  }
+                                }}
+                                icon={XCircle}
+                                className="text-red-600 border-red-200 hover:bg-red-50"
+                              >
+                                Flag
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* MODULE 6: CAMPAIGN DIRECTORY & PERMANENT REMOVAL */}
+          {/* ========================================================================= */}
+          {activeTab === 'campaigns' && (
+            <div className="space-y-6">
+              <Card className="p-6 border border-gray-200 shadow-xs space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-base font-bold text-gray-900">
+                      Master Campaign Directory & Permanent Removal
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      Complete catalog of all approved, pending, and rejected campaigns with direct takedown controls.
+                    </p>
+                  </div>
+                  <div className="w-full sm:w-64">
+                    <SearchBar
+                      value={campaignDirectorySearch}
+                      onChange={setCampaignDirectorySearch}
+                      placeholder="Search any campaign..."
+                    />
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        <th className="pb-3">Title & Category</th>
+                        <th className="pb-3">Creator</th>
+                        <th className="pb-3">Goal</th>
+                        <th className="pb-3">Raised</th>
+                        <th className="pb-3">Status</th>
+                        <th className="pb-3 text-right">Moderation & Removal</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {filteredDirectoryCampaigns.map((camp) => (
+                        <tr key={camp.id} className="hover:bg-gray-50/80 transition-colors">
+                          <td className="py-3.5 pr-4">
+                            <p className="font-bold text-gray-900 line-clamp-1">{camp.title}</p>
+                            <p className="text-xs text-[#007979]">{camp.category}</p>
+                          </td>
+                          <td className="py-3.5 pr-4">
+                            <p className="font-semibold text-gray-800">{camp.creator_name}</p>
+                            <p className="text-xs text-gray-500">{camp.creator_department}</p>
+                          </td>
+                          <td className="py-3.5 pr-4 font-semibold text-gray-700">
+                            {formatCurrency(camp.goal_amount)}
+                          </td>
+                          <td className="py-3.5 pr-4 font-bold text-[#E37434]">
+                            {formatCurrency(camp.amount_raised || 0)}
+                          </td>
+                          <td className="py-3.5 pr-4">
                             <span
-                              className={`px-2.5 py-0.5 rounded-lg text-xs font-bold uppercase tracking-wider ${
-                                status === 'approved'
+                              className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase ${
+                                camp.status === 'approved'
                                   ? 'bg-emerald-100 text-emerald-800'
-                                  : status === 'rejected'
+                                  : camp.status === 'rejected'
                                   ? 'bg-red-100 text-red-800'
                                   : 'bg-amber-100 text-amber-800'
                               }`}
                             >
-                              {status === 'approved'
-                                ? '✓ Approved'
-                                : status === 'rejected'
-                                ? '✕ Rejected'
-                                : '⏳ Pending Review'}
+                              {camp.status || 'pending'}
                             </span>
-                            {docs.length > 0 && (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">
-                                <FileText className="w-3.5 h-3.5" />
-                                {docs.length} Doc{docs.length > 1 ? 's' : ''}
-                              </span>
-                            )}
-                          </div>
-
-                          <h3 className="text-base sm:text-lg font-bold text-gray-900 leading-snug truncate">
-                            {camp.title}
-                          </h3>
-
-                          <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600">
-                            <span className="inline-flex items-center gap-1 font-semibold text-gray-900">
-                              <User className="w-3.5 h-3.5 text-[#007979]" />
-                              {camp.creator_name} ({camp.creator_user_type || 'Student'})
-                            </span>
-                            <span>•</span>
-                            <span className="inline-flex items-center gap-1 text-gray-600">
-                              <Building2 className="w-3.5 h-3.5 text-gray-400" />
-                              {camp.creator_department || camp.department}
-                            </span>
-                            <span>•</span>
-                            <span className="font-bold text-[#E37434]">
-                              Goal: {formatCurrency(camp.goal_amount)}
-                            </span>
-                            <span>•</span>
-                            <span className="text-gray-400">
-                              Submitted: {formatDate(camp.created_at)}
-                            </span>
-                          </div>
-
-                          {camp.admin_feedback && (
-                            <p className="text-xs text-gray-600 bg-gray-50 p-2 rounded-lg border border-gray-100 italic">
-                              <span className="font-bold not-italic text-gray-700">Admin Note: </span>
-                              {camp.admin_feedback}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Right: Actions */}
-                      <div className="flex items-center gap-2.5 shrink-0 self-end lg:self-center">
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          onClick={() => handleOpenReview(camp)}
-                          icon={Eye}
-                        >
-                          Review & Verify
-                        </Button>
-
-                        {status === 'pending' && (
-                          <>
-                            <button
-                              type="button"
-                              title="Quick Approve"
-                              onClick={() => handleApproveCampaign(camp.id, 'Quick approval by university administrator.')}
-                              className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 flex items-center justify-center transition-colors cursor-pointer"
-                            >
-                              <CheckCircle2 className="w-5 h-5" />
-                            </button>
-                            <button
-                              type="button"
-                              title="Reject"
-                              onClick={() => handleOpenReview(camp)}
-                              className="w-9 h-9 rounded-xl bg-red-50 text-red-700 hover:bg-red-100 flex items-center justify-center transition-colors cursor-pointer"
-                            >
-                              <XCircle className="w-5 h-5" />
-                            </button>
-                          </>
-                        )}
-
-                        <button
-                          type="button"
-                          title="Remove Campaign from Platform"
-                          onClick={() => handleDeleteCampaign(camp.id, camp.title)}
-                          className="w-9 h-9 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center transition-colors cursor-pointer"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* TAB 2: FRAUD & MODERATION REPORTS */}
-      {/* ========================================================================= */}
-      {activeTab === 'reports' && (
-        <div className="space-y-6">
-          {/* Sub-filters for Reports */}
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-gray-200 shadow-xs">
-            <div className="flex items-center gap-2 flex-wrap">
-              <button
-                type="button"
-                onClick={() => setReportStatusFilter('pending')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  reportStatusFilter === 'pending'
-                    ? 'bg-red-600 text-white shadow-xs'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                Needs Review ({pendingReportsCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setReportStatusFilter('resolved')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  reportStatusFilter === 'resolved'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                Resolved ({resolvedReportsCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setReportStatusFilter('dismissed')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  reportStatusFilter === 'dismissed'
-                    ? 'bg-gray-700 text-white shadow-xs'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                Dismissed ({dismissedReportsCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setReportStatusFilter('all')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  reportStatusFilter === 'all'
-                    ? 'bg-[#007979] text-white shadow-xs'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                All Reports ({reports.length})
-              </button>
-            </div>
-
-            <p className="text-xs text-gray-500 font-medium">
-              Reports filed by university students, faculty, or verified campus backers.
-            </p>
-          </div>
-
-          {/* Reports List */}
-          {filteredReports.length === 0 ? (
-            <EmptyState
-              title="No reports in this category"
-              description="There are currently no campaign integrity or fraud reports with the selected status filter."
-              actionLabel="Show All Reports"
-              onAction={() => setReportStatusFilter('all')}
-            />
-          ) : (
-            <div className="space-y-4">
-              {filteredReports.map((rep) => {
-                const isPending = (rep.status || 'pending') === 'pending';
-                const isResolved = rep.status === 'resolved';
-                const creatorDeactivated = rep.creator_status === 'deactivated';
-
-                return (
-                  <Card key={rep.id} className="p-5 border border-gray-200 hover:border-gray-300 transition-colors">
-                    <div className="space-y-4">
-                      {/* Top Meta Bar */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-gray-100">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-red-50 text-red-700 border border-red-200">
-                            <ShieldAlert className="w-3.5 h-3.5" />
-                            {rep.reason}
-                          </span>
-                          <span
-                            className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${
-                              isResolved
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : rep.status === 'dismissed'
-                                ? 'bg-gray-100 text-gray-700'
-                                : 'bg-red-100 text-red-800'
-                            }`}
-                          >
-                            {isResolved ? '✓ Resolved' : rep.status === 'dismissed' ? '✕ Dismissed' : '⏳ Action Required'}
-                          </span>
-                        </div>
-                        <span className="text-xs text-gray-400">
-                          Reported on {formatDate(rep.created_at)}
-                        </span>
-                      </div>
-
-                      {/* Reported Campaign & Creator Grid */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-3.5 rounded-2xl border border-gray-100">
-                        {/* Left: Campaign Information */}
-                        <div className="space-y-1">
-                          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-                            Reported Campaign
-                          </p>
-                          <h4 className="text-sm font-bold text-gray-900 leading-snug">
-                            {rep.campaign_title}
-                          </h4>
-                          <div className="flex items-center gap-2 text-xs text-gray-500">
-                            <span className="font-semibold text-[#007979]">{rep.campaign_category}</span>
-                            <span>•</span>
-                            <span>Status: {rep.campaign_status}</span>
-                          </div>
-                        </div>
-
-                        {/* Right: Creator Information & Account Status */}
-                        <div className="space-y-1">
-                          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-                            Campaign Creator
-                          </p>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold text-gray-900">{rep.creator_name}</span>
-                            <span
-                              className={`px-2 py-0.2 rounded-full text-[10px] font-bold uppercase ${
-                                creatorDeactivated
-                                  ? 'bg-red-100 text-red-800 border border-red-200'
-                                  : 'bg-emerald-100 text-emerald-800'
-                              }`}
-                            >
-                              {creatorDeactivated ? 'Account Deactivated' : 'Active Account'}
-                            </span>
-                          </div>
-                          <p className="text-xs text-gray-500">
-                            {rep.creator_department} • {rep.creator_email}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Detailed Complaint Body */}
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-xs font-bold text-gray-700">
-                          <FileWarning className="w-4 h-4 text-red-600" />
-                          <span>Report Description / Evidence</span>
-                          {rep.reporter_name && (
-                            <span className="font-normal text-gray-400">
-                              (Filed by: {rep.reporter_name} {rep.reporter_email ? `<${rep.reporter_email}>` : ''})
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-800 bg-red-50/50 p-3.5 rounded-xl border border-red-100/80 leading-relaxed">
-                          {rep.description}
-                        </p>
-                      </div>
-
-                      {/* Admin Notes if resolved */}
-                      {rep.admin_notes && (
-                        <div className="text-xs text-gray-600 bg-gray-50 p-3 rounded-xl border border-gray-200">
-                          <span className="font-bold text-gray-900">Admin Investigation Note: </span>
-                          <span>{rep.admin_notes}</span>
-                        </div>
-                      )}
-
-                      {/* Action Buttons for Report */}
-                      <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-gray-100">
-                        {/* Direct Enforcement Actions */}
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleTakeDownFromReport(rep.campaign_id, rep.campaign_title, rep.id)}
-                            icon={Trash2}
-                            className="!text-red-600 !border-red-200 hover:!bg-red-50"
-                          >
-                            Take Down Campaign
-                          </Button>
-
-                          {!creatorDeactivated && rep.creator_id && (
+                          </td>
+                          <td className="py-3.5 text-right space-x-2">
                             <Button
-                              variant="outline"
+                              variant="ghost"
                               size="sm"
-                              onClick={() => handleDeactivateCreatorFromReport(rep.creator_id, rep.creator_name, rep.id)}
-                              icon={UserX}
-                              className="!text-amber-700 !border-amber-200 hover:!bg-amber-50"
+                              onClick={() => handleOpenReview(camp)}
+                              icon={Eye}
                             >
-                              Deactivate Creator
+                              Inspect
                             </Button>
-                          )}
-                        </div>
-
-                        {/* Resolution Actions */}
-                        <div className="flex items-center gap-2">
-                          {isPending && (
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleResolveReport(rep.id, 'dismissed')}
-                                icon={XCircle}
-                              >
-                                Dismiss Report
-                              </Button>
-                              <Button
-                                variant="primary"
-                                size="sm"
-                                onClick={() => handleResolveReport(rep.id, 'resolved')}
-                                icon={CheckCircle2}
-                                className="!bg-emerald-600 hover:!bg-emerald-700"
-                              >
-                                Mark Resolved
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* TAB 3: USER MANAGEMENT (DEACTIVATE / REACTIVATE) */}
-      {/* ========================================================================= */}
-      {activeTab === 'users' && (
-        <div className="space-y-6">
-          {/* Sub-filters for Users */}
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-gray-200 shadow-xs">
-            <div className="flex items-center gap-2 flex-wrap">
-              <button
-                type="button"
-                onClick={() => setUserStatusFilter('all')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  userStatusFilter === 'all'
-                    ? 'bg-[#007979] text-white shadow-xs'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                All Accounts ({users.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setUserStatusFilter('active')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  userStatusFilter === 'active'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                Active ({activeUsersCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setUserStatusFilter('deactivated')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  userStatusFilter === 'deactivated'
-                    ? 'bg-red-600 text-white shadow-xs'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                Suspended / Deactivated ({deactivatedUsersCount})
-              </button>
-            </div>
-
-            <p className="text-xs text-gray-500 font-medium">
-              Deactivated accounts cannot sign in or initiate fundraisers.
-            </p>
-          </div>
-
-          {/* Search & Department Filters for Users */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-white p-4 rounded-2xl border border-gray-200 shadow-xs">
-            <div className="md:col-span-2">
-              <SearchBar
-                value={userSearchQuery}
-                onChange={setUserSearchQuery}
-                placeholder="Search user name, email address, or university ID..."
-              />
-            </div>
-            <div>
-              <select
-                value={userDeptFilter}
-                onChange={(e) => setUserDeptFilter(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#24B1B1]"
-              >
-                <option value="All">All Departments</option>
-                {DEPARTMENTS.map((dept) => (
-                  <option key={dept} value={dept}>
-                    {dept}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Users Management Table */}
-          {filteredUsers.length === 0 ? (
-            <EmptyState
-              title="No users match search criteria"
-              description="There are no campus accounts matching this status, department, or search query."
-              actionLabel="Reset User Filters"
-              onAction={() => {
-                setUserStatusFilter('all');
-                setUserSearchQuery('');
-                setUserDeptFilter('All');
-              }}
-            />
-          ) : (
-            <Card className="p-6 border border-gray-200 shadow-xs space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-base font-bold text-gray-900">
-                    Campus Account Directory & Access Control
-                  </h3>
-                  <p className="text-xs text-gray-500">
-                    Manage student and faculty account status and security credentials.
-                  </p>
-                </div>
-                <span className="text-xs font-bold text-gray-500">
-                  {filteredUsers.length} Users Listed
-                </span>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                      <th className="pb-3">User & University ID</th>
-                      <th className="pb-3">Role</th>
-                      <th className="pb-3">Department</th>
-                      <th className="pb-3">Campaigns</th>
-                      <th className="pb-3">Account Status</th>
-                      <th className="pb-3 text-right">Access Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {filteredUsers.map((u) => {
-                      const isCurrentUser = String(u.id) === String(currentUser?.id);
-                      const isDeactivated = u.status === 'deactivated';
-
-                      return (
-                        <tr key={u.id} className="hover:bg-gray-50/80 transition-colors">
-                          <td className="py-3.5 pr-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-full bg-[#007979]/10 text-[#007979] flex items-center justify-center font-bold text-sm shrink-0">
-                                {u.name ? u.name.charAt(0).toUpperCase() : 'U'}
-                              </div>
-                              <div>
-                                <p className="font-bold text-gray-900 flex items-center gap-1.5">
-                                  <span>{u.name}</span>
-                                  {isCurrentUser && (
-                                    <span className="text-[10px] font-extrabold text-[#007979] bg-[#007979]/10 px-1.5 py-0.2 rounded">
-                                      YOU
-                                    </span>
-                                  )}
-                                </p>
-                                <p className="text-xs text-gray-500">{u.email}</p>
-                                {u.university_id && (
-                                  <p className="text-[11px] text-gray-400 font-mono">{u.university_id}</p>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-3.5 pr-4">
-                            <span className="px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-800">
-                              {u.user_type || 'Student'}
-                            </span>
-                          </td>
-                          <td className="py-3.5 pr-4 text-xs font-medium text-gray-700">
-                            {u.department}
-                          </td>
-                          <td className="py-3.5 pr-4 text-xs font-bold text-gray-900">
-                            {u.campaign_count ?? 0}
-                          </td>
-                          <td className="py-3.5 pr-4">
-                            <span
-                              className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${
-                                isDeactivated
-                                  ? 'bg-red-100 text-red-800 border border-red-200'
-                                  : 'bg-emerald-100 text-emerald-800'
-                              }`}
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCampaign(camp.id, camp.title)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-red-600 hover:bg-red-50 border border-red-200 transition-colors cursor-pointer"
+                              title="Remove Campaign from Platform"
                             >
-                              {isDeactivated ? '✕ Deactivated' : '✓ Active'}
-                            </span>
-                          </td>
-                          <td className="py-3.5 text-right">
-                            {isCurrentUser ? (
-                              <span className="text-xs text-gray-400 italic">Self (Protected)</span>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => handleToggleUserStatus(u.id, u.name, u.status)}
-                                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer border ${
-                                  isDeactivated
-                                    ? 'border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100'
-                                    : 'border-red-200 text-red-600 bg-red-50 hover:bg-red-100'
-                                }`}
-                              >
-                                {isDeactivated ? (
-                                  <>
-                                    <UserCheck className="w-3.5 h-3.5" />
-                                    <span>Reactivate</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <UserX className="w-3.5 h-3.5" />
-                                    <span>Deactivate</span>
-                                  </>
-                                )}
-                              </button>
-                            )}
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Remove</span>
+                            </button>
                           </td>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-          )}
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* TAB 4: EXPENSE RECEIPTS & TRANSPARENCY AUDIT */}
-      {/* ========================================================================= */}
-      {activeTab === 'expenses' && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-gray-200 shadow-xs">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setExpenseStatusFilter('all')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  expenseStatusFilter === 'all'
-                    ? 'bg-[#007979] text-white shadow-xs'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                All Receipts ({expenses.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setExpenseStatusFilter('pending')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  expenseStatusFilter === 'pending'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                Pending Audit ({pendingExpensesCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setExpenseStatusFilter('verified')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  expenseStatusFilter === 'verified'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                Verified ({expenses.filter((e) => e.status === 'verified').length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setExpenseStatusFilter('rejected')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  expenseStatusFilter === 'rejected'
-                    ? 'bg-red-600 text-white shadow-xs'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                Flagged ({expenses.filter((e) => e.status === 'rejected').length})
-              </button>
-            </div>
-            <p className="text-xs text-gray-500 font-medium hidden sm:block">
-              Ensures donors see verified financial utilization receipts.
-            </p>
-          </div>
-
-          {filteredExpenses.length === 0 ? (
-            <EmptyState
-              title="No expense receipts found"
-              description="There are currently no expense receipts matching this status filter."
-              actionLabel="Show All Receipts"
-              onAction={() => setExpenseStatusFilter('all')}
-            />
-          ) : (
-            <div className="space-y-3">
-              {filteredExpenses.map((exp) => {
-                const status = exp.status || 'pending';
-                return (
-                  <Card key={exp.id} className="p-5 border border-gray-200">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <div className="flex items-start gap-3.5 flex-1 min-w-0">
-                        <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                          <Receipt className="w-6 h-6" />
-                        </div>
-                        <div className="space-y-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs font-bold text-[#007979] bg-[#007979]/10 px-2.5 py-0.5 rounded-md">
-                              {exp.campaign_title}
-                            </span>
-                            <span
-                              className={`px-2 py-0.5 rounded-md text-[11px] font-bold uppercase ${
-                                status === 'verified'
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : status === 'rejected'
-                                  ? 'bg-red-100 text-red-800'
-                                  : 'bg-blue-100 text-blue-800'
-                              }`}
-                            >
-                              {status === 'verified'
-                                ? '✓ Verified'
-                                : status === 'rejected'
-                                ? '✕ Flagged'
-                                : '⏳ Pending Audit'}
-                            </span>
-                          </div>
-                          <h4 className="text-base font-bold text-gray-900">{exp.title}</h4>
-                          <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600">
-                            <span className="font-bold text-[#E37434]">
-                              Amount: {formatCurrency(exp.amount)}
-                            </span>
-                            <span>•</span>
-                            <span>Vendor: {exp.vendor || 'Authorized Supplier'}</span>
-                            <span>•</span>
-                            <span>Category: {exp.category || 'Equipment'}</span>
-                            <span>•</span>
-                            <span>Date: {formatDate(exp.created_at)}</span>
-                          </div>
-                          {exp.admin_notes && (
-                            <p className="text-xs text-gray-600 bg-gray-50 p-2 rounded-lg border border-gray-100 italic">
-                              <span className="font-bold not-italic text-gray-700">Audit Note: </span>
-                              {exp.admin_notes}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
-                        {exp.receipt_url && (
-                          <a
-                            href={exp.receipt_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-[#007979] bg-[#007979]/10 hover:bg-[#007979]/20 transition-colors"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                            View Invoice
-                          </a>
-                        )}
-
-                        {status !== 'verified' && (
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={() =>
-                              handleUpdateExpenseStatus(
-                                exp.id,
-                                'verified',
-                                'Verified with original invoice and expenditure declaration.'
-                              )
-                            }
-                            icon={CheckCircle2}
-                            className="!bg-emerald-600 hover:!bg-emerald-700"
-                          >
-                            Mark Verified
-                          </Button>
-                        )}
-
-                        {status !== 'rejected' && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              const notes = window.prompt(
-                                'Enter audit note / reason for flagging this receipt:'
-                              );
-                              if (notes !== null) {
-                                handleUpdateExpenseStatus(exp.id, 'rejected', notes);
-                              }
-                            }}
-                            icon={XCircle}
-                            className="text-red-600 border-red-200 hover:bg-red-50"
-                          >
-                            Flag
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })}
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
             </div>
           )}
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* TAB 5: PLATFORM MODERATION & ANALYTICS */}
-      {/* ========================================================================= */}
-      {activeTab === 'analytics' && (
-        <div className="space-y-8">
-          {/* Distribution Breakdowns */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="p-6 border border-gray-200 shadow-xs">
-              <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <Layers className="w-5 h-5 text-[#007979]" />
-                Campaigns by Category
-              </h3>
-              <div className="space-y-3">
-                {Object.entries(stats?.categoryDistribution || {}).map(([category, count]) => {
-                  const pct = Math.round((count / (campaigns.length || 1)) * 100);
-                  return (
-                    <div key={category} className="space-y-1">
-                      <div className="flex justify-between text-xs font-semibold">
-                        <span className="text-gray-700">{category}</span>
-                        <span className="text-[#007979]">
-                          {count} ({pct}%)
-                        </span>
-                      </div>
-                      <div className="w-full h-2 rounded-full bg-gray-100 overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-[#007979]"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
-
-            <Card className="p-6 border border-gray-200 shadow-xs">
-              <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-[#E37434]" />
-                Campaigns by Department
-              </h3>
-              <div className="space-y-3">
-                {Object.entries(stats?.departmentDistribution || {}).map(([dept, count]) => {
-                  const pct = Math.round((count / (campaigns.length || 1)) * 100);
-                  return (
-                    <div key={dept} className="space-y-1">
-                      <div className="flex justify-between text-xs font-semibold">
-                        <span className="text-gray-700 truncate max-w-[260px]">{dept}</span>
-                        <span className="text-[#E37434]">
-                          {count} ({pct}%)
-                        </span>
-                      </div>
-                      <div className="w-full h-2 rounded-full bg-gray-100 overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-[#E37434]"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
-          </div>
-
-          {/* Master Moderation & Removal Table */}
-          <Card className="p-6 border border-gray-200 shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-gray-900">
-                  Platform Moderation & Direct Campaign Removal
-                </h3>
-                <p className="text-xs text-gray-500">
-                  Full list of all active, pending, and rejected campaigns with permanent take-down capability.
-                </p>
-              </div>
-              <span className="text-xs font-bold text-gray-500">
-                Total: {campaigns.length} initiatives
-              </span>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                    <th className="pb-3">Title & Category</th>
-                    <th className="pb-3">Creator</th>
-                    <th className="pb-3">Goal</th>
-                    <th className="pb-3">Raised</th>
-                    <th className="pb-3">Status</th>
-                    <th className="pb-3 text-right">Moderation & Removal</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {campaigns.map((camp) => (
-                    <tr key={camp.id} className="hover:bg-gray-50/80 transition-colors">
-                      <td className="py-3.5 pr-4">
-                        <p className="font-bold text-gray-900 line-clamp-1">{camp.title}</p>
-                        <p className="text-xs text-[#007979]">{camp.category}</p>
-                      </td>
-                      <td className="py-3.5 pr-4">
-                        <p className="font-semibold text-gray-800">{camp.creator_name}</p>
-                        <p className="text-xs text-gray-500">{camp.creator_department}</p>
-                      </td>
-                      <td className="py-3.5 pr-4 font-semibold text-gray-700">
-                        {formatCurrency(camp.goal_amount)}
-                      </td>
-                      <td className="py-3.5 pr-4 font-bold text-[#E37434]">
-                        {formatCurrency(camp.amount_raised || 0)}
-                      </td>
-                      <td className="py-3.5 pr-4">
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase ${
-                            camp.status === 'approved'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : camp.status === 'rejected'
-                              ? 'bg-red-100 text-red-800'
-                              : 'bg-amber-100 text-amber-800'
-                          }`}
-                        >
-                          {camp.status || 'pending'}
-                        </span>
-                      </td>
-                      <td className="py-3.5 text-right space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleOpenReview(camp)}
-                          icon={Eye}
-                        >
-                          Inspect
-                        </Button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteCampaign(camp.id, camp.title)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-red-600 hover:bg-red-50 border border-red-200 transition-colors cursor-pointer"
-                          title="Remove Campaign from Platform"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Remove</span>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        </div>
-      )}
+        </main>
+      </div>
 
       {/* Document Verification Dossier Inspection Modal */}
       <DocumentVerificationModal

@@ -253,11 +253,20 @@ const inMemoryStore = {
   ]
 };
 
+let isPostgresAvailable = null;
+
 export const query = async (text, params = []) => {
+  if (isPostgresAvailable === false) {
+    return handleInMemoryQuery(text, params);
+  }
   try {
     const res = await pool.query(text, params);
+    isPostgresAvailable = true;
     return res;
   } catch (error) {
+    if (isPostgresAvailable === null) {
+      isPostgresAvailable = false;
+    }
     return handleInMemoryQuery(text, params);
   }
 };
