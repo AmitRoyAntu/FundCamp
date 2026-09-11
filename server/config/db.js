@@ -19,6 +19,7 @@ const inMemoryStore = {
       password: '$2b$10$44CiuM.wN1E3ENkFx/zlW.ZX3JgNhYtkQNs1w5.1A6TzyFq0yOIbq', // 12345678
       department: 'Computer Science',
       user_type: 'Student',
+      university_id: 'STU-2026-101',
       created_at: new Date().toISOString()
     },
     {
@@ -28,6 +29,17 @@ const inMemoryStore = {
       password: '$2b$10$44CiuM.wN1E3ENkFx/zlW.ZX3JgNhYtkQNs1w5.1A6TzyFq0yOIbq', // 12345678
       department: 'Robotics Lab',
       user_type: 'Faculty',
+      university_id: 'FAC-2026-042',
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 3,
+      name: 'Campus Administrator',
+      email: 'admin@university.edu',
+      password: '$2b$10$44CiuM.wN1E3ENkFx/zlW.ZX3JgNhYtkQNs1w5.1A6TzyFq0yOIbq', // 12345678
+      department: 'Office of Student Affairs & Research Administration',
+      user_type: 'Admin',
+      university_id: 'ADM-2026-001',
       created_at: new Date().toISOString()
     }
   ],
@@ -37,10 +49,19 @@ const inMemoryStore = {
       title: 'Robotics Lab Equipment Upgrade',
       description: 'Funding for high-precision sensors and microcontrollers for the university robotics competition team.',
       category: 'Research',
+      department: 'Robotics Lab',
+      image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=1200',
       tags: ['Robotics', 'Hardware', 'Microcontrollers', 'Competition'],
       goal_amount: 5001,
       amount_raised: 3200,
+      status: 'approved',
       creator_id: 2,
+      documents: [
+        { name: 'Lab_Budget_Breakdown.pdf', url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf', type: 'application/pdf', size: '142 KB' },
+        { name: 'Faculty_Advisor_Endorsement.pdf', url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf', type: 'application/pdf', size: '98 KB' }
+      ],
+      admin_feedback: null,
+      verified_at: new Date().toISOString(),
       created_at: new Date().toISOString()
     },
     {
@@ -48,10 +69,61 @@ const inMemoryStore = {
       title: 'Student Emergency Medical Support Fund',
       description: 'Raising funds to support fellow student Sarah who needs urgent cardiac procedure assistance.',
       category: 'Medical',
+      department: 'Computer Science',
+      image: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&q=80&w=1200',
       tags: ['MedicalEmergency', 'StudentAid', 'Urgent'],
       goal_amount: 12000,
       amount_raised: 8500,
+      status: 'approved',
       creator_id: 1,
+      documents: [
+        { name: 'Hospital_Admission_Letter.pdf', url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf', type: 'application/pdf', size: '215 KB' },
+        { name: 'University_Medical_Board_Approval.pdf', url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf', type: 'application/pdf', size: '180 KB' }
+      ],
+      admin_feedback: null,
+      verified_at: new Date().toISOString(),
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 3,
+      title: 'Autonomous Campus Drone Delivery System',
+      description: 'Research grant to build an AI-powered payload quadcopter for delivering critical medical supplies and documents across campus faculties.',
+      category: 'Research',
+      department: 'Electrical & Electronic Engineering',
+      image: 'https://images.unsplash.com/photo-1508614589041-895b88991e3e?auto=format&fit=crop&q=80&w=1200',
+      tags: ['Drones', 'AI', 'Logistics', 'Robotics'],
+      goal_amount: 8500,
+      amount_raised: 0,
+      status: 'pending',
+      creator_id: 2,
+      documents: [
+        { name: 'Department_Approval_Letter.pdf', url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf', type: 'application/pdf', size: '184 KB' },
+        { name: 'Student_ID_Cards_Team.pdf', url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf', type: 'application/pdf', size: '320 KB' },
+        { name: 'Bill_of_Materials_Quotation.pdf', url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf', type: 'application/pdf', size: '145 KB' }
+      ],
+      admin_feedback: null,
+      verified_at: null,
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 4,
+      title: 'Urgent Chemotherapy Aid for Student Kabir',
+      description: 'Freshman student Kabir from Department of CSE has been diagnosed with Acute Lymphoblastic Leukemia requiring intensive chemotherapy sessions.',
+      category: 'Medical',
+      department: 'Computer Science',
+      image: 'https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&q=80&w=1200',
+      tags: ['MedicalEmergency', 'Chemotherapy', 'StudentWelfare'],
+      goal_amount: 25000,
+      amount_raised: 0,
+      status: 'pending',
+      creator_id: 1,
+      documents: [
+        { name: 'Specialist_Doctor_Prescription.pdf', url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf', type: 'application/pdf', size: '410 KB' },
+        { name: 'Hospital_Cost_Estimate_Certificate.pdf', url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf', type: 'application/pdf', size: '290 KB' },
+        { name: 'University_Student_ID.pdf', url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf', type: 'application/pdf', size: '115 KB' }
+      ],
+      admin_feedback: null,
+      verified_at: null,
       created_at: new Date().toISOString()
     }
   ],
@@ -133,6 +205,34 @@ const inMemoryStore = {
       payment_method: 'Nagad',
       created_at: new Date(Date.now() - 86400000).toISOString()
     }
+  ],
+  expense_receipts: [
+    {
+      id: 1,
+      campaign_id: 1,
+      title: 'STM32F407 Microcontrollers Bulk Purchase (10x Units)',
+      amount: 1450.00,
+      vendor: 'TechShop BD Ltd.',
+      category: 'Hardware/Equipment',
+      receipt_url: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&q=80&w=800',
+      receipt_name: 'Invoice-TSBD-8921.jpg',
+      status: 'verified',
+      admin_notes: 'Verified with original supplier invoice and lab inventory log.',
+      created_at: new Date(Date.now() - 86400000 * 2).toISOString()
+    },
+    {
+      id: 2,
+      campaign_id: 1,
+      title: 'Ultrasonic & LiDAR Range Sensors Calibration Kit',
+      amount: 1200.00,
+      vendor: 'RoboTech Components Ltd.',
+      category: 'Hardware/Sensors',
+      receipt_url: 'https://images.unsplash.com/photo-1554224154-26032ffc0d07?auto=format&fit=crop&q=80&w=800',
+      receipt_name: 'Invoice-RoboTech-4029.jpg',
+      status: 'pending',
+      admin_notes: 'Submitted by Dr. Chen; pending verification of shipment packing slip.',
+      created_at: new Date(Date.now() - 86400000).toISOString()
+    }
   ]
 };
 
@@ -188,20 +288,69 @@ function handleInMemoryQuery(text, params) {
       rows: [{
         ...campaign,
         creator_name: creator ? creator.name : 'Unknown Creator',
-        creator_department: creator ? creator.department : ''
+        creator_department: creator ? creator.department : '',
+        creator_email: creator ? creator.email : '',
+        creator_type: creator ? (creator.user_type || creator.userType) : 'Student',
+        creator_university_id: creator ? (creator.university_id || creator.universityId) : 'STU-2026'
       }]
     };
   }
 
-  if (queryStr.includes('select c.*, u.name as creator_name')) {
-    const campaigns = inMemoryStore.campaigns.map(c => {
+  if (queryStr.includes('update campaigns') && queryStr.includes('status =')) {
+    // UPDATE campaigns SET status = $1, admin_feedback = $2, verified_at = $3, verified_by = $4 WHERE id = $5
+    let status, admin_feedback, verified_at, verified_by, id;
+    if (params.length === 5) {
+      [status, admin_feedback, verified_at, verified_by, id] = params;
+    } else if (params.length === 4) {
+      [status, admin_feedback, verified_by, id] = params;
+      verified_at = new Date().toISOString();
+    } else {
+      [status, id] = params;
+    }
+    const camp = inMemoryStore.campaigns.find(c => c.id === parseInt(id, 10));
+    if (camp) {
+      camp.status = status;
+      if (admin_feedback !== undefined) camp.admin_feedback = admin_feedback;
+      camp.verified_at = verified_at || new Date().toISOString();
+      if (verified_by) camp.verified_by = parseInt(verified_by, 10);
+      return { rows: [camp] };
+    }
+    return { rows: [] };
+  }
+
+  if (queryStr.includes('delete from campaigns where id =')) {
+    const id = parseInt(params[0], 10);
+    const idx = inMemoryStore.campaigns.findIndex(c => c.id === id);
+    if (idx !== -1) {
+      const deleted = inMemoryStore.campaigns.splice(idx, 1)[0];
+      return { rows: [deleted] };
+    }
+    return { rows: [] };
+  }
+
+  if (queryStr.includes('from campaigns c') && queryStr.includes('join users u')) {
+    let campaigns = inMemoryStore.campaigns.map(c => {
       const creator = inMemoryStore.users.find(u => u.id === c.creator_id);
       return {
         ...c,
         creator_name: creator ? creator.name : 'Unknown Creator',
-        creator_department: creator ? creator.department : ''
+        creator_department: creator ? creator.department : '',
+        creator_email: creator ? creator.email : '',
+        creator_type: creator ? (creator.user_type || creator.userType) : 'Student',
+        creator_university_id: creator ? (creator.university_id || creator.universityId) : 'STU-2026'
       };
     });
+
+    // Check if public route requested only approved campaigns:
+    if (queryStr.includes("c.status = 'approved'")) {
+      campaigns = campaigns.filter(c => (c.status || 'approved') === 'approved');
+    } else if (queryStr.includes('c.status = $') && params && params.length > 0) {
+      const targetStatus = params[0];
+      if (targetStatus && targetStatus !== 'all') {
+        campaigns = campaigns.filter(c => (c.status || 'pending') === targetStatus);
+      }
+    }
+
     return { rows: campaigns };
   }
 
@@ -217,9 +366,9 @@ function handleInMemoryQuery(text, params) {
   }
 
   if (queryStr.includes('insert into campaigns')) {
-    let title, description, category, department, image, goal_amount, tags, creator_id;
-    if (params.length === 8) {
-      [title, description, category, department, image, goal_amount, tags, creator_id] = params;
+    let title, description, category, department, image, goal_amount, tags, creator_id, documents;
+    if (params.length >= 8) {
+      [title, description, category, department, image, goal_amount, tags, creator_id, documents] = params;
     } else {
       [title, description, category, department, image, goal_amount, creator_id] = params;
       tags = [];
@@ -232,12 +381,57 @@ function handleInMemoryQuery(text, params) {
       department: department || 'University Department',
       image: image || null,
       goal_amount: parseFloat(goal_amount),
+      amount_raised: 0,
       tags: Array.isArray(tags) ? tags : [],
+      status: 'pending', // default for newly submitted campaigns
+      documents: Array.isArray(documents) ? documents : [],
+      admin_feedback: null,
+      verified_at: null,
       creator_id: parseInt(creator_id, 10),
       created_at: new Date().toISOString()
     };
     inMemoryStore.campaigns.push(newCampaign);
     return { rows: [newCampaign] };
+  }
+
+  // EXPENSE RECEIPTS QUERIES
+  if (queryStr.includes('from expense_receipts') || queryStr.includes('from "expense_receipts"')) {
+    let list = inMemoryStore.expense_receipts || [];
+    if (params && params.length > 0 && queryStr.includes('where')) {
+      if (queryStr.includes('campaign_id = $1') || queryStr.includes('campaign_id =')) {
+        const campId = parseInt(params[0], 10);
+        list = list.filter(e => e.campaign_id === campId);
+      } else if (queryStr.includes('status = $1')) {
+        const st = params[0];
+        if (st && st !== 'all') {
+          list = list.filter(e => e.status === st);
+        }
+      }
+    }
+    const enriched = list.map(e => {
+      const camp = inMemoryStore.campaigns.find(c => c.id === e.campaign_id);
+      const creator = camp ? inMemoryStore.users.find(u => u.id === camp.creator_id) : null;
+      return {
+        ...e,
+        campaign_title: camp ? camp.title : 'University Campaign',
+        campaign_category: camp ? camp.category : 'General',
+        creator_name: creator ? creator.name : 'Campus Creator'
+      };
+    });
+    enriched.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    return { rows: enriched };
+  }
+
+  if (queryStr.includes('update expense_receipts') && queryStr.includes('status =')) {
+    // UPDATE expense_receipts SET status = $1, admin_notes = $2 WHERE id = $3
+    const [status, admin_notes, id] = params;
+    const item = (inMemoryStore.expense_receipts || []).find(e => e.id === parseInt(id, 10));
+    if (item) {
+      item.status = status;
+      if (admin_notes !== undefined) item.admin_notes = admin_notes;
+      return { rows: [item] };
+    }
+    return { rows: [] };
   }
 
   // UPDATES QUERIES

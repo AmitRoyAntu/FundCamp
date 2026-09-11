@@ -7,8 +7,10 @@ import DashboardPage from '../pages/dashboard/DashboardPage';
 import CampaignDetailPage from '../pages/campaign/CampaignDetailPage';
 import CreateCampaignPage from '../pages/createCampaign/CreateCampaignPage';
 import ProfilePage from '../pages/profile/ProfilePage';
+import AdminDashboardPage from '../pages/admin/AdminDashboardPage';
 import NotFoundPage from '../pages/notFound/NotFoundPage';
 import ProtectedRoute from '../components/common/ProtectedRoute';
+import AdminRoute from '../components/admin/AdminRoute';
 
 export default function AppRoutes() {
   return (
@@ -34,6 +36,16 @@ export default function AppRoutes() {
           <ProtectedRoute>
             <ProfilePage />
           </ProtectedRoute>
+        }
+      />
+
+      {/* University Administration & Verification Portal */}
+      <Route
+        path="/admin"
+        element={
+          <AdminRoute>
+            <AdminDashboardPage />
+          </AdminRoute>
         }
       />
 
