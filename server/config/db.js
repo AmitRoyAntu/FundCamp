@@ -19,6 +19,7 @@ const inMemoryStore = {
       password: '$2b$10$44CiuM.wN1E3ENkFx/zlW.ZX3JgNhYtkQNs1w5.1A6TzyFq0yOIbq', // 12345678
       department: 'Computer Science',
       user_type: 'Student',
+      status: 'active',
       university_id: 'STU-2026-101',
       created_at: new Date().toISOString()
     },
@@ -29,6 +30,7 @@ const inMemoryStore = {
       password: '$2b$10$44CiuM.wN1E3ENkFx/zlW.ZX3JgNhYtkQNs1w5.1A6TzyFq0yOIbq', // 12345678
       department: 'Robotics Lab',
       user_type: 'Faculty',
+      status: 'active',
       university_id: 'FAC-2026-042',
       created_at: new Date().toISOString()
     },
@@ -39,6 +41,7 @@ const inMemoryStore = {
       password: '$2b$10$44CiuM.wN1E3ENkFx/zlW.ZX3JgNhYtkQNs1w5.1A6TzyFq0yOIbq', // 12345678
       department: 'Office of Student Affairs & Research Administration',
       user_type: 'Admin',
+      status: 'active',
       university_id: 'ADM-2026-001',
       created_at: new Date().toISOString()
     }
@@ -233,6 +236,20 @@ const inMemoryStore = {
       admin_notes: 'Submitted by Dr. Chen; pending verification of shipment packing slip.',
       created_at: new Date(Date.now() - 86400000).toISOString()
     }
+  ],
+  campaign_reports: [
+    {
+      id: 1,
+      campaign_id: 2,
+      reporter_id: 2,
+      reporter_name: 'Dr. Robert Chen',
+      reporter_email: 'r.chen@university.edu',
+      reason: 'Suspected Fake Proof Documents',
+      description: 'The uploaded medical admission certificate does not have an authorized hospital seal or attending doctor signature. Please verify with university health center.',
+      status: 'pending',
+      admin_notes: null,
+      created_at: new Date(Date.now() - 3600000 * 4).toISOString()
+    }
   ]
 };
 
@@ -246,7 +263,7 @@ export const query = async (text, params = []) => {
 };
 
 function handleInMemoryQuery(text, params) {
-  const queryStr = text.trim().toLowerCase();
+  const queryStr = text.trim().toLowerCase().replace(/\s+/g, ' ');
 
   // USERS QUERIES
   if (queryStr.includes('select * from users where email =')) {
@@ -255,12 +272,44 @@ function handleInMemoryQuery(text, params) {
     return { rows: user ? [user] : [] };
   }
 
-  if (queryStr.includes('select id, name, email, department, user_type') || queryStr.includes('select * from users where id =')) {
+  // Find user by ID (single user)
+  if (queryStr.includes('from users') && (queryStr.includes('where id =') || queryStr.includes('where u.id ='))) {
     const id = parseInt(params[0], 10);
     const user = inMemoryStore.users.find(u => u.id === id);
     if (!user) return { rows: [] };
     const { password, ...userWithoutPassword } = user;
-    return { rows: [userWithoutPassword] };
+    return { rows: [{ ...userWithoutPassword, status: user.status || 'active' }] };
+  }
+
+  if (queryStr.includes('update users') && queryStr.includes('status =')) {
+    const [status, id] = params;
+    const user = inMemoryStore.users.find(u => u.id === parseInt(id, 10));
+    if (user) {
+      user.status = status;
+      const { password, ...userWithoutPassword } = user;
+      return { rows: [userWithoutPassword] };
+    }
+    return { rows: [] };
+  }
+
+  // List all users for admin directory
+  if (queryStr.includes('from users') && !queryStr.includes('insert into')) {
+    let list = inMemoryStore.users.map(u => {
+      const { password, ...userWithoutPassword } = u;
+      const userCampaigns = inMemoryStore.campaigns.filter(c => c.creator_id === u.id);
+      return {
+        ...userWithoutPassword,
+        status: u.status || 'active',
+        campaign_count: userCampaigns.length
+      };
+    });
+    if (params && params.length > 0 && queryStr.includes('status = $')) {
+      const targetStatus = params[0];
+      if (targetStatus && targetStatus !== 'all') {
+        list = list.filter(u => u.status === targetStatus);
+      }
+    }
+    return { rows: list };
   }
 
   if (queryStr.includes('insert into users')) {
@@ -272,6 +321,7 @@ function handleInMemoryQuery(text, params) {
       password,
       department,
       user_type: user_type || params[4] || 'Student',
+      status: 'active',
       created_at: new Date().toISOString()
     };
     inMemoryStore.users.push(newUser);
@@ -323,6 +373,12 @@ function handleInMemoryQuery(text, params) {
     const idx = inMemoryStore.campaigns.findIndex(c => c.id === id);
     if (idx !== -1) {
       const deleted = inMemoryStore.campaigns.splice(idx, 1)[0];
+      // Cascade delete associated entities
+      inMemoryStore.campaign_reports = (inMemoryStore.campaign_reports || []).filter(r => r.campaign_id !== id);
+      inMemoryStore.expense_receipts = (inMemoryStore.expense_receipts || []).filter(e => e.campaign_id !== id);
+      inMemoryStore.donations = (inMemoryStore.donations || []).filter(d => d.campaign_id !== id);
+      inMemoryStore.updates = (inMemoryStore.updates || []).filter(u => u.campaign_id !== id);
+      inMemoryStore.comments = (inMemoryStore.comments || []).filter(c => c.campaign_id !== id);
       return { rows: [deleted] };
     }
     return { rows: [] };
@@ -430,6 +486,69 @@ function handleInMemoryQuery(text, params) {
       item.status = status;
       if (admin_notes !== undefined) item.admin_notes = admin_notes;
       return { rows: [item] };
+    }
+    return { rows: [] };
+  }
+
+  // CAMPAIGN REPORTS QUERIES
+  if (queryStr.includes('from campaign_reports') || queryStr.includes('from "campaign_reports"')) {
+    let list = inMemoryStore.campaign_reports || [];
+    if (params && params.length > 0 && queryStr.includes('status = $')) {
+      const targetStatus = params[0];
+      if (targetStatus && targetStatus !== 'all') {
+        list = list.filter(r => r.status === targetStatus);
+      }
+    }
+    const enriched = list.map(r => {
+      const camp = inMemoryStore.campaigns.find(c => c.id === r.campaign_id);
+      const creator = camp ? inMemoryStore.users.find(u => u.id === camp.creator_id) : null;
+      return {
+        ...r,
+        campaign_title: camp ? camp.title : 'Deleted Campaign',
+        campaign_category: camp ? camp.category : 'General',
+        creator_id: camp ? camp.creator_id : null,
+        creator_name: creator ? creator.name : 'Unknown Creator',
+        creator_email: creator ? creator.email : '',
+        creator_department: creator ? creator.department : '',
+        creator_status: creator ? (creator.status || 'active') : 'active'
+      };
+    });
+    enriched.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    return { rows: enriched };
+  }
+
+  if (queryStr.includes('insert into campaign_reports')) {
+    let campaign_id, reporter_id, reporter_name, reporter_email, reason, description;
+    if (params.length >= 6) {
+      [campaign_id, reporter_id, reporter_name, reporter_email, reason, description] = params;
+    } else {
+      [campaign_id, reason, description] = params;
+    }
+    const newReport = {
+      id: (inMemoryStore.campaign_reports || []).length + 1,
+      campaign_id: parseInt(campaign_id, 10),
+      reporter_id: reporter_id ? parseInt(reporter_id, 10) : null,
+      reporter_name: reporter_name || 'Campus Member',
+      reporter_email: reporter_email || '',
+      reason: reason || 'Policy Violation',
+      description: description || '',
+      status: 'pending',
+      admin_notes: null,
+      created_at: new Date().toISOString()
+    };
+    if (!inMemoryStore.campaign_reports) inMemoryStore.campaign_reports = [];
+    inMemoryStore.campaign_reports.push(newReport);
+    return { rows: [newReport] };
+  }
+
+  if (queryStr.includes('update campaign_reports') && queryStr.includes('status =')) {
+    // UPDATE campaign_reports SET status = $1, admin_notes = $2 WHERE id = $3
+    const [status, admin_notes, id] = params;
+    const report = (inMemoryStore.campaign_reports || []).find(r => r.id === parseInt(id, 10));
+    if (report) {
+      report.status = status;
+      if (admin_notes !== undefined) report.admin_notes = admin_notes;
+      return { rows: [report] };
     }
     return { rows: [] };
   }

@@ -7,12 +7,14 @@ import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
 import Loader from '../../components/common/Loader';
 import DonateModal from '../../components/campaign/DonateModal';
+import ReportCampaignModal from '../../components/campaign/ReportCampaignModal';
 import Input from '../../components/common/Input';
 import { formatCurrency, calculatePercentage, formatDate, daysLeft } from '../../utils/formatters';
 import toast from 'react-hot-toast';
 import {
   ArrowLeft,
   Share2,
+  Flag,
   Heart,
   GraduationCap,
   Building2,
@@ -58,6 +60,7 @@ export default function CampaignDetailPage() {
 
   // Modal State
   const [isDonateModalOpen, setIsDonateModalOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [previewModalImage, setPreviewModalImage] = useState(null);
 
   // Form states for Updates
@@ -335,9 +338,20 @@ export default function CampaignDetailPage() {
         >
           <ArrowLeft className="w-4 h-4" /> Back to campaigns
         </button>
-        <Button variant="outline" size="sm" onClick={handleShare} icon={Share2}>
-          Share Link
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleShare} icon={Share2}>
+            Share Link
+          </Button>
+          <button
+            type="button"
+            onClick={() => setIsReportModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors cursor-pointer"
+            title="Report fraud, fake documents, or university guideline violations"
+          >
+            <Flag className="w-3.5 h-3.5" />
+            <span>Report</span>
+          </button>
+        </div>
       </div>
 
       {/* Main Campaign Header */}
@@ -1085,6 +1099,13 @@ export default function CampaignDetailPage() {
         isOpen={isDonateModalOpen}
         onClose={() => setIsDonateModalOpen(false)}
         onSuccess={handleDonationSuccess}
+      />
+
+      {/* Fraud & Integrity Report Modal */}
+      <ReportCampaignModal
+        campaign={campaign}
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
       />
 
       {/* Full-Screen Image Lightbox Modal */}

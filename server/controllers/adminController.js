@@ -1,12 +1,16 @@
 import { Campaign } from '../models/campaignModel.js';
 import { Expense } from '../models/expenseModel.js';
+import { User } from '../models/userModel.js';
+import { Report } from '../models/reportModel.js';
 import { query } from '../config/db.js';
 
 export const getAdminStats = async (req, res) => {
   try {
-    // Fetch all campaigns for admin analytics
+    // Fetch campaigns, expenses, reports, and users for admin analytics
     const allCampaigns = await Campaign.findAllForAdmin({ status: 'all' });
     const allExpenses = await Expense.findAllForAdmin({ status: 'all' });
+    const allReports = await Report.findAllForAdmin({ status: 'all' });
+    const allUsers = await User.findAllForAdmin();
 
     let pendingCount = 0;
     let approvedCount = 0;
@@ -47,6 +51,24 @@ export const getAdminStats = async (req, res) => {
       }
     });
 
+    let pendingReportsCount = 0;
+    let resolvedReportsCount = 0;
+    let dismissedReportsCount = 0;
+
+    allReports.forEach((rep) => {
+      if (rep.status === 'pending') pendingReportsCount++;
+      else if (rep.status === 'resolved') resolvedReportsCount++;
+      else if (rep.status === 'dismissed') dismissedReportsCount++;
+    });
+
+    let activeUsersCount = 0;
+    let deactivatedUsersCount = 0;
+
+    allUsers.forEach((u) => {
+      if (u.status === 'deactivated') deactivatedUsersCount++;
+      else activeUsersCount++;
+    });
+
     return res.status(200).json({
       success: true,
       message: 'Admin statistics retrieved successfully',
@@ -64,6 +86,17 @@ export const getAdminStats = async (req, res) => {
           pending: pendingExpensesCount,
           verified: verifiedExpensesCount,
           totalVerifiedAmount: totalExpensesAmount,
+        },
+        reports: {
+          total: allReports.length,
+          pending: pendingReportsCount,
+          resolved: resolvedReportsCount,
+          dismissed: dismissedReportsCount,
+        },
+        users: {
+          total: allUsers.length,
+          active: activeUsersCount,
+          deactivated: deactivatedUsersCount,
         },
         categoryDistribution,
         departmentDistribution,
@@ -146,8 +179,10 @@ export const getAdminCampaignById = async (req, res) => {
       }
     }
 
-    // Also fetch associated expenses for transparency overview
+    // Also fetch associated expenses and reports for transparency overview
     const expenses = await Expense.findAllForAdmin({ campaignId: id });
+    const reports = await Report.findAllForAdmin({ status: 'all' });
+    const campaignReports = reports.filter(r => String(r.campaign_id) === String(id));
 
     return res.status(200).json({
       success: true,
@@ -156,6 +191,7 @@ export const getAdminCampaignById = async (req, res) => {
         ...campaign,
         documents: docs,
         expenses,
+        reports: campaignReports,
       },
     });
   } catch (error) {
@@ -229,7 +265,7 @@ export const deleteCampaign = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Campaign removed by administrator successfully',
+      message: 'Campaign removed from university platform successfully',
       data: deleted,
     });
   } catch (error) {
@@ -301,6 +337,140 @@ export const verifyExpense = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Internal server error while updating expense receipt',
+      error: error.message,
+    });
+  }
+};
+
+// ==========================================
+// USER MANAGEMENT (DEACTIVATE / REACTIVATE)
+// ==========================================
+export const getAdminUsers = async (req, res) => {
+  try {
+    const { search, department, status } = req.query;
+    const users = await User.findAllForAdmin({ search, department, status });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Users retrieved successfully',
+      data: users,
+    });
+  } catch (error) {
+    console.error('Get Admin Users Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error while fetching users',
+      error: error.message,
+    });
+  }
+};
+
+export const updateUserStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!status || !['active', 'deactivated'].includes(status.toLowerCase())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        error: "Status must be either 'active' or 'deactivated'",
+      });
+    }
+
+    // Protection: Prevent admin from deactivating themselves
+    if (String(id) === String(req.user.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Operation not permitted',
+        error: 'You cannot deactivate your own administrator account',
+      });
+    }
+
+    const updated = await User.updateStatus(id, status.toLowerCase());
+
+    if (!updated) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+        error: `No user found with id ${id}`,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `User account has been ${status === 'active' ? 'reactivated' : 'deactivated'} successfully`,
+      data: updated,
+    });
+  } catch (error) {
+    console.error('Update User Status Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error while updating user status',
+      error: error.message,
+    });
+  }
+};
+
+// ==========================================
+// FRAUD & POLICY REPORTS MANAGEMENT
+// ==========================================
+export const getAdminReports = async (req, res) => {
+  try {
+    const { status } = req.query;
+    const reports = await Report.findAllForAdmin({ status: status || 'all' });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Campaign reports retrieved successfully',
+      data: reports,
+    });
+  } catch (error) {
+    console.error('Get Admin Reports Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error while fetching reports',
+      error: error.message,
+    });
+  }
+};
+
+export const resolveReport = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, adminNotes } = req.body;
+
+    if (!status || !['pending', 'investigating', 'resolved', 'dismissed'].includes(status.toLowerCase())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        error: "Status must be 'pending', 'investigating', 'resolved', or 'dismissed'",
+      });
+    }
+
+    const updated = await Report.updateStatus(id, {
+      status: status.toLowerCase(),
+      adminNotes,
+    });
+
+    if (!updated) {
+      return res.status(404).json({
+        success: false,
+        message: 'Report not found',
+        error: `No report found with id ${id}`,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Report status updated to ${status}`,
+      data: updated,
+    });
+  } catch (error) {
+    console.error('Resolve Report Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error while updating report',
       error: error.message,
     });
   }

@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
     password VARCHAR(255) NOT NULL,
     department VARCHAR(255) NOT NULL,
     user_type VARCHAR(50) NOT NULL,
+    status VARCHAR(50) DEFAULT 'active',
     avatar TEXT,
     university_id VARCHAR(100),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -74,6 +75,19 @@ CREATE TABLE IF NOT EXISTS expense_receipts (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS campaign_reports (
+    id SERIAL PRIMARY KEY,
+    campaign_id INTEGER NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+    reporter_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    reporter_name VARCHAR(255),
+    reporter_email VARCHAR(255),
+    reason VARCHAR(100) NOT NULL,
+    description TEXT NOT NULL,
+    status VARCHAR(50) DEFAULT 'pending',
+    admin_notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Performance Indexes on Foreign Keys & Search
 CREATE INDEX IF NOT EXISTS idx_campaigns_creator ON campaigns(creator_id);
 CREATE INDEX IF NOT EXISTS idx_campaigns_status ON campaigns(status);
@@ -82,3 +96,5 @@ CREATE INDEX IF NOT EXISTS idx_updates_campaign ON campaign_updates(campaign_id)
 CREATE INDEX IF NOT EXISTS idx_comments_campaign ON campaign_comments(campaign_id);
 CREATE INDEX IF NOT EXISTS idx_expense_receipts_campaign ON expense_receipts(campaign_id);
 CREATE INDEX IF NOT EXISTS idx_expense_receipts_status ON expense_receipts(status);
+CREATE INDEX IF NOT EXISTS idx_campaign_reports_campaign ON campaign_reports(campaign_id);
+CREATE INDEX IF NOT EXISTS idx_campaign_reports_status ON campaign_reports(status);

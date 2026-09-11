@@ -7,6 +7,10 @@ import {
   deleteCampaign,
   getAdminExpenses,
   verifyExpense,
+  getAdminUsers,
+  updateUserStatus,
+  getAdminReports,
+  resolveReport,
 } from '../controllers/adminController.js';
 import { verifyAdmin } from '../middleware/adminMiddleware.js';
 
@@ -24,5 +28,13 @@ router.delete('/admin/campaigns/:id', verifyAdmin, deleteCampaign);
 // Admin Financial Transparency & Expense Receipts Audit
 router.get('/admin/expenses', verifyAdmin, getAdminExpenses);
 router.put('/admin/expenses/:id/status', verifyAdmin, verifyExpense);
+
+// Admin User Management (Deactivate / Reactivate Users)
+router.get('/admin/users', verifyAdmin, getAdminUsers);
+router.put('/admin/users/:id/status', verifyAdmin, updateUserStatus);
+
+// Admin Fraud & Moderation Reports Queue
+router.get('/admin/reports', verifyAdmin, getAdminReports);
+router.put('/admin/reports/:id/status', verifyAdmin, resolveReport);
 
 export default router;

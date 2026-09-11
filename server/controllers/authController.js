@@ -117,6 +117,15 @@ export const login = async (req, res) => {
       });
     }
 
+    // Check if account has been deactivated by university administration
+    if (user.status === 'deactivated' || user.is_active === false) {
+      return res.status(403).json({
+        success: false,
+        message: 'Account suspended',
+        error: 'Your university account has been deactivated by administration. Please contact the administrator.'
+      });
+    }
+
     const secret = process.env.JWT_SECRET || 'fundcamp_super_secret_jwt_key_2026';
     const token = jwt.sign({ id: user.id, email: user.email }, secret, { expiresIn: '7d' });
 

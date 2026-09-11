@@ -1,4 +1,5 @@
 import { Campaign } from '../models/campaignModel.js';
+import { Report } from '../models/reportModel.js';
 
 export const getAllCampaigns = async (req, res) => {
   try {
@@ -145,6 +146,53 @@ export const processDonation = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+export const reportCampaign = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason, description, reporterName, reporterEmail } = req.body;
+    const reporterId = req.user?.id || null;
+
+    if (!reason || !description) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        error: 'Reason and detailed description are required to submit a report'
+      });
+    }
+
+    const campaign = await Campaign.findById(id);
+    if (!campaign) {
+      return res.status(404).json({
+        success: false,
+        message: 'Campaign not found',
+        error: `No campaign found with id ${id}`
+      });
+    }
+
+    const report = await Report.create({
+      campaignId: id,
+      reporterId,
+      reporterName: reporterName || req.user?.name || 'Campus Member',
+      reporterEmail: reporterEmail || req.user?.email || null,
+      reason,
+      description
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Report submitted successfully. University administration has received your notification.',
+      data: report
+    });
+  } catch (error) {
+    console.error('Report Campaign Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error while reporting campaign',
       error: error.message
     });
   }

@@ -228,6 +228,17 @@ export const campaignService = {
       console.warn('Failed to fetch donations:', err);
       return [];
     }
-  }
+  },
+
+  // POST /api/campaigns/:id/report
+  async reportCampaign(id, { reason, description, reporterName, reporterEmail }) {
+    const response = await apiClient.post(`/campaigns/${id}/report`, {
+      reason,
+      description,
+      reporterName,
+      reporterEmail,
+    });
+    return response.data.data;
+  },
 };
 

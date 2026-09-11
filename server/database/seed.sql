@@ -41,3 +41,8 @@ VALUES
 (1, 'STM32F407 Microcontrollers Bulk Purchase (10x Units)', 1450.00, 'TechShop BD Ltd.', 'Hardware/Equipment', 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&q=80&w=800', 'Invoice-TSBD-8921.jpg', 'verified', 'Verified with original supplier invoice and lab inventory log.'),
 (1, 'Ultrasonic & LiDAR Range Sensors Calibration Kit', 1200.00, 'RoboTech Components Ltd.', 'Hardware/Sensors', 'https://images.unsplash.com/photo-1554224154-26032ffc0d07?auto=format&fit=crop&q=80&w=800', 'Invoice-RoboTech-4029.jpg', 'pending', 'Submitted by Dr. Chen; pending verification of shipment packing slip.')
 ON CONFLICT DO NOTHING;
+
+INSERT INTO campaign_reports (campaign_id, reporter_id, reporter_name, reporter_email, reason, description, status, admin_notes)
+VALUES
+(2, 2, 'Dr. Robert Chen', 'r.chen@university.edu', 'Suspected Fake Proof Documents', 'The uploaded medical admission certificate does not have an authorized hospital seal or attending doctor signature. Please verify with university health center.', 'pending', NULL)
+ON CONFLICT DO NOTHING;

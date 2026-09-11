@@ -61,4 +61,41 @@ export const adminService = {
     });
     return response.data.data;
   },
+
+  // GET /api/admin/users
+  async getUsers(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.status && filters.status !== 'all') params.append('status', filters.status);
+    if (filters.department && filters.department !== 'All') params.append('department', filters.department);
+    if (filters.search && filters.search.trim()) params.append('search', filters.search.trim());
+
+    const url = `/admin/users${params.toString() ? `?${params.toString()}` : ''}`;
+    const response = await apiClient.get(url);
+    return response.data.data;
+  },
+
+  // PUT /api/admin/users/:id/status
+  async updateUserStatus(id, status) {
+    const response = await apiClient.put(`/admin/users/${id}/status`, { status });
+    return response.data.data;
+  },
+
+  // GET /api/admin/reports
+  async getReports(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.status && filters.status !== 'all') params.append('status', filters.status);
+
+    const url = `/admin/reports${params.toString() ? `?${params.toString()}` : ''}`;
+    const response = await apiClient.get(url);
+    return response.data.data;
+  },
+
+  // PUT /api/admin/reports/:id/status
+  async resolveReport(id, { status, adminNotes }) {
+    const response = await apiClient.put(`/admin/reports/${id}/status`, {
+      status,
+      adminNotes,
+    });
+    return response.data.data;
+  },
 };
