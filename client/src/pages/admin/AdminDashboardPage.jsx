@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { adminService } from '../../services/adminService';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
@@ -6,6 +7,7 @@ import SearchBar from '../../components/common/SearchBar';
 import EmptyState from '../../components/common/EmptyState';
 import Loader from '../../components/common/Loader';
 import DocumentVerificationModal from '../../components/admin/DocumentVerificationModal';
+import UserProfileDossierModal from '../../components/admin/UserProfileDossierModal';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { CAMPAIGN_CATEGORIES } from '../../constants/categories';
 import { DEPARTMENTS } from '../../constants/userTypes';
@@ -48,6 +50,7 @@ import {
   Sparkles,
   Calendar,
   Check,
+  MessageSquare,
 } from 'lucide-react';
 
 export default function AdminDashboardPage() {
@@ -70,6 +73,15 @@ export default function AdminDashboardPage() {
   const [expenses, setExpenses] = useState([]);
   const [reports, setReports] = useState([]);
   const [users, setUsers] = useState([]);
+  const [comments, setComments] = useState([]);
+
+  // Comment Moderation States
+  const [commentSearchQuery, setCommentSearchQuery] = useState('');
+  const [deletingCommentId, setDeletingCommentId] = useState(null);
+
+  // User Profile Dossier Modal State
+  const [dossierUserId, setDossierUserId] = useState(null);
+  const [isDossierOpen, setIsDossierOpen] = useState(false);
 
   // Verification Queue Filter States
   const [statusFilter, setStatusFilter] = useState('pending'); // 'pending' | 'approved' | 'rejected' | 'all'
@@ -103,18 +115,20 @@ export default function AdminDashboardPage() {
   const loadAllData = async () => {
     setLoading(true);
     try {
-      const [statsData, campaignsData, expensesData, reportsData, usersData] = await Promise.all([
+      const [statsData, campaignsData, expensesData, reportsData, usersData, commentsData] = await Promise.all([
         adminService.getStats(),
         adminService.getCampaigns({ status: 'all' }),
         adminService.getExpenses({ status: 'all' }),
         adminService.getReports({ status: 'all' }),
         adminService.getUsers({ status: 'all' }),
+        adminService.getComments(),
       ]);
       setStats(statsData);
       setCampaigns(campaignsData || []);
       setExpenses(expensesData || []);
       setReports(reportsData || []);
       setUsers(usersData || []);
+      setComments(commentsData || []);
     } catch (err) {
       toast.error(err.message || 'Failed to load administrative data');
     } finally {
@@ -125,23 +139,45 @@ export default function AdminDashboardPage() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      const [statsData, campaignsData, expensesData, reportsData, usersData] = await Promise.all([
+      const [statsData, campaignsData, expensesData, reportsData, usersData, commentsData] = await Promise.all([
         adminService.getStats(),
         adminService.getCampaigns({ status: 'all' }),
         adminService.getExpenses({ status: 'all' }),
         adminService.getReports({ status: 'all' }),
         adminService.getUsers({ status: 'all' }),
+        adminService.getComments(),
       ]);
       setStats(statsData);
       setCampaigns(campaignsData || []);
       setExpenses(expensesData || []);
       setReports(reportsData || []);
       setUsers(usersData || []);
+      setComments(commentsData || []);
       toast.success('Admin data refreshed successfully');
     } catch (err) {
       toast.error('Failed to refresh data');
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  const handleOpenUserDossier = (userId) => {
+    if (!userId) return;
+    setDossierUserId(userId);
+    setIsDossierOpen(true);
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    if (!window.confirm('Are you sure you want to permanently remove this comment from the platform?')) return;
+    setDeletingCommentId(commentId);
+    try {
+      await adminService.deleteComment(commentId);
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+      toast.success('Comment removed from platform');
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Failed to remove comment');
+    } finally {
+      setDeletingCommentId(null);
     }
   };
 
@@ -348,6 +384,18 @@ export default function AdminDashboardPage() {
     return e.status === expenseStatusFilter;
   });
 
+  // Filtered Comments for Moderation
+  const filteredComments = comments.filter((c) => {
+    const q = commentSearchQuery.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      (c.content && c.content.toLowerCase().includes(q)) ||
+      (c.user_name && c.user_name.toLowerCase().includes(q)) ||
+      (c.campaign_title && c.campaign_title.toLowerCase().includes(q)) ||
+      (c.user_department && c.user_department.toLowerCase().includes(q))
+    );
+  });
+
   // Filtered Master Campaign Directory
   const filteredDirectoryCampaigns = campaigns.filter((c) => {
     const query = campaignDirectorySearch.toLowerCase().trim();
@@ -492,6 +540,13 @@ export default function AdminDashboardPage() {
       icon: Users,
       badge: deactivatedUsersCount > 0 ? `${deactivatedUsersCount} Suspended` : null,
       badgeColor: 'gray',
+    },
+    {
+      id: 'comments',
+      label: 'Comment Moderation',
+      icon: MessageSquare,
+      badge: comments.length > 0 ? comments.length : null,
+      badgeColor: 'teal',
     },
     {
       id: 'expenses',
@@ -1216,10 +1271,15 @@ export default function AdminDashboardPage() {
                               </h3>
 
                               <div className="flex flex-wrap items-center gap-2.5 text-xs text-gray-600">
-                                <span className="inline-flex items-center gap-1 font-semibold text-gray-900">
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenUserDossier(camp.creator_id)}
+                                  className="inline-flex items-center gap-1 font-semibold text-gray-900 hover:text-[#007979] hover:underline cursor-pointer"
+                                  title="Inspect creator dossier"
+                                >
                                   <User className="w-3 h-3 text-[#007979]" />
                                   {camp.creator_name} ({camp.creator_user_type || 'Student'})
-                                </span>
+                                </button>
                                 <span>•</span>
                                 <span className="inline-flex items-center gap-1 text-gray-600">
                                   <Building2 className="w-3 h-3 text-gray-400" />
@@ -1399,8 +1459,17 @@ export default function AdminDashboardPage() {
                               </span>
                             </div>
 
-                            <h4 className="text-base font-bold text-gray-900">
-                              Target Campaign: <span className="text-[#007979]">{rep.campaign_title || `Campaign #${rep.campaign_id}`}</span>
+                            <h4 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                              Target Campaign:{' '}
+                              <Link
+                                to={`/campaigns/${rep.campaign_id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[#007979] hover:underline flex items-center gap-1"
+                              >
+                                {rep.campaign_title || `Campaign #${rep.campaign_id}`}
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </Link>
                             </h4>
 
                             <div className="p-3 rounded-xl bg-white border border-gray-200 text-xs sm:text-sm text-gray-800 leading-relaxed shadow-2xs">
@@ -1412,12 +1481,34 @@ export default function AdminDashboardPage() {
 
                             <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600 pt-0.5">
                               <span>
-                                <strong className="text-gray-900">Reporter:</strong> {rep.reporter_name || 'Anonymous'}{' '}
+                                <strong className="text-gray-900">Reporter:</strong>{' '}
+                                {rep.reporter_id ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenUserDossier(rep.reporter_id)}
+                                    className="text-gray-900 hover:text-[#007979] hover:underline font-semibold cursor-pointer"
+                                  >
+                                    {rep.reporter_name || 'Anonymous'}
+                                  </button>
+                                ) : (
+                                  rep.reporter_name || 'Anonymous'
+                                )}{' '}
                                 {rep.reporter_email && `(${rep.reporter_email})`}
                               </span>
                               <span>•</span>
                               <span>
-                                <strong className="text-gray-900">Creator:</strong> {rep.creator_name || 'Campus Creator'}
+                                <strong className="text-gray-900">Creator:</strong>{' '}
+                                {rep.creator_id ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenUserDossier(rep.creator_id)}
+                                    className="text-gray-900 hover:text-[#007979] hover:underline font-semibold cursor-pointer"
+                                  >
+                                    {rep.creator_name || 'Campus Creator'}
+                                  </button>
+                                ) : (
+                                  rep.creator_name || 'Campus Creator'
+                                )}
                               </span>
                               {rep.creator_status === 'deactivated' && (
                                 <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700 font-bold text-[10px]">
@@ -1590,7 +1681,15 @@ export default function AdminDashboardPage() {
                         return (
                           <tr key={u.id} className="hover:bg-gray-50/80 transition-colors">
                             <td className="py-3 pr-4">
-                              <p className="font-bold text-gray-900">{u.name}</p>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenUserDossier(u.id)}
+                                className="font-bold text-gray-900 hover:text-[#007979] hover:underline text-left cursor-pointer flex items-center gap-1.5 group"
+                                title="Click to view user profile dossier"
+                              >
+                                {u.name}
+                                <ExternalLink className="w-3 h-3 text-gray-400 group-hover:text-[#007979] opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </button>
                               <p className="text-xs text-gray-500">{u.email}</p>
                             </td>
                             <td className="py-3 pr-4">
@@ -1614,29 +1713,40 @@ export default function AdminDashboardPage() {
                               </span>
                             </td>
                             <td className="py-3 text-right">
-                              {isSelf ? (
-                                <span className="text-xs text-gray-400 italic">Self Account</span>
-                              ) : isDeactivated ? (
+                              <div className="flex items-center justify-end gap-2">
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => handleToggleUserStatus(u.id, u.name, u.status)}
-                                  icon={UserCheck}
-                                  className="text-emerald-700 border-emerald-300 hover:bg-emerald-50 text-xs"
+                                  onClick={() => handleOpenUserDossier(u.id)}
+                                  icon={Eye}
+                                  className="text-gray-700 border-gray-200 hover:bg-gray-100 text-xs py-1 px-2.5"
                                 >
-                                  Reactivate
+                                  Dossier
                                 </Button>
-                              ) : (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleToggleUserStatus(u.id, u.name, u.status)}
-                                  icon={UserX}
-                                  className="text-red-600 border-red-200 hover:bg-red-50 text-xs"
-                                >
-                                  Deactivate
-                                </Button>
-                              )}
+                                {isSelf ? (
+                                  <span className="text-xs text-gray-400 italic">Self</span>
+                                ) : isDeactivated ? (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleToggleUserStatus(u.id, u.name, u.status)}
+                                    icon={UserCheck}
+                                    className="text-emerald-700 border-emerald-300 hover:bg-emerald-50 text-xs py-1 px-2.5"
+                                  >
+                                    Reactivate
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleToggleUserStatus(u.id, u.name, u.status)}
+                                    icon={UserX}
+                                    className="text-red-600 border-red-200 hover:bg-red-50 text-xs py-1 px-2.5"
+                                  >
+                                    Deactivate
+                                  </Button>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         );
@@ -1645,6 +1755,130 @@ export default function AdminDashboardPage() {
                   </table>
                 </div>
               </Card>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* MODULE: COMMENT MODERATION & PLATFORM DISCUSSION GOVERNANCE */}
+          {/* ========================================================================= */}
+          {activeTab === 'comments' && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-gray-200 shadow-xs">
+                <div>
+                  <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5 text-[#007979]" />
+                    Comment Moderation & Discourse Oversight
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Review, audit, or remove platform comments violating university conduct policies.
+                  </p>
+                </div>
+                <div className="w-full sm:w-72">
+                  <SearchBar
+                    value={commentSearchQuery}
+                    onChange={setCommentSearchQuery}
+                    placeholder="Search comment, author, campaign..."
+                  />
+                </div>
+              </div>
+
+              {filteredComments.length === 0 ? (
+                <EmptyState
+                  title="No comments found"
+                  description={
+                    commentSearchQuery
+                      ? 'No comments match your search filter criteria.'
+                      : 'No comments have been posted across campaigns yet.'
+                  }
+                  actionLabel={commentSearchQuery ? 'Clear Search' : undefined}
+                  onAction={commentSearchQuery ? () => setCommentSearchQuery('') : undefined}
+                />
+              ) : (
+                <div className="space-y-3">
+                  {filteredComments.map((cmt) => (
+                    <Card
+                      key={cmt.id}
+                      className="p-5 border border-gray-200 hover:shadow-xs transition-shadow space-y-3"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                        <div className="flex items-start gap-3">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenUserDossier(cmt.user_id)}
+                            className="cursor-pointer group hover:opacity-90 transition-opacity shrink-0"
+                            title="Inspect user profile dossier"
+                          >
+                            <div className="w-10 h-10 rounded-full bg-linear-to-br from-[#007979] to-[#24B1B1] text-white font-bold text-sm flex items-center justify-center shadow-2xs group-hover:ring-2 ring-[#24B1B1]">
+                              {(cmt.user_name || 'U').charAt(0).toUpperCase()}
+                            </div>
+                          </button>
+
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenUserDossier(cmt.user_id)}
+                                className="font-bold text-sm text-gray-900 hover:text-[#007979] hover:underline cursor-pointer flex items-center gap-1"
+                              >
+                                {cmt.user_name || 'Campus Member'}
+                                <ArrowUpRight className="w-3 h-3 text-gray-400" />
+                              </button>
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#007979]/10 text-[#007979]">
+                                {cmt.user_type || 'Student'}
+                              </span>
+                              <span className="text-xs text-gray-400">•</span>
+                              <span className="text-xs text-gray-500">
+                                {cmt.user_department || 'University Member'}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <span>Posted on</span>
+                              <Link
+                                to={`/campaigns/${cmt.campaign_id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-semibold text-[#007979] hover:underline flex items-center gap-1"
+                              >
+                                {cmt.campaign_title || `Campaign #${cmt.campaign_id}`}
+                                <ExternalLink className="w-3 h-3" />
+                              </Link>
+                              <span>•</span>
+                              <span>{formatDate(cmt.created_at)}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenUserDossier(cmt.user_id)}
+                            icon={Eye}
+                            className="text-gray-700 border-gray-200 hover:bg-gray-100 text-xs py-1.5"
+                          >
+                            User Dossier
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            loading={deletingCommentId === cmt.id}
+                            onClick={() => handleDeleteComment(cmt.id)}
+                            icon={Trash2}
+                            className="text-rose-600 border-rose-200 hover:bg-rose-50 text-xs py-1.5"
+                          >
+                            Remove Comment
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-100 text-sm text-gray-800 whitespace-pre-line leading-relaxed">
+                        "{cmt.content}"
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -1880,7 +2114,15 @@ export default function AdminDashboardPage() {
                             <p className="text-xs text-[#007979]">{camp.category}</p>
                           </td>
                           <td className="py-3 pr-4">
-                            <p className="font-semibold text-gray-800">{camp.creator_name}</p>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenUserDossier(camp.creator_id)}
+                              className="font-semibold text-gray-800 hover:text-[#007979] hover:underline text-left cursor-pointer flex items-center gap-1 group"
+                              title="Click to view creator profile dossier"
+                            >
+                              {camp.creator_name}
+                              <ArrowUpRight className="w-3 h-3 text-gray-400 group-hover:text-[#007979]" />
+                            </button>
                             <p className="text-xs text-gray-500">{camp.creator_department}</p>
                           </td>
                           <td className="py-3 pr-4 font-semibold text-gray-700">
@@ -1903,6 +2145,16 @@ export default function AdminDashboardPage() {
                             </span>
                           </td>
                           <td className="py-3 text-right space-x-2">
+                            <Link
+                              to={`/campaigns/${camp.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-[#007979] bg-teal-50 hover:bg-teal-100 transition-colors"
+                              title="View Public Campaign Page as normal user"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                              <span>Public View</span>
+                            </Link>
                             <Button
                               variant="ghost"
                               size="sm"
@@ -1940,6 +2192,16 @@ export default function AdminDashboardPage() {
         onApprove={handleApproveCampaign}
         onReject={handleRejectCampaign}
         isProcessing={actionProcessing}
+      />
+
+      {/* User Profile Dossier Inspection Modal */}
+      <UserProfileDossierModal
+        userId={dossierUserId}
+        isOpen={isDossierOpen}
+        onClose={() => {
+          setIsDossierOpen(false);
+          setDossierUserId(null);
+        }}
       />
     </div>
   );

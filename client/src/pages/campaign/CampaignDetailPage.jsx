@@ -78,6 +78,7 @@ export default function CampaignDetailPage() {
 
   const [commentContent, setCommentContent] = useState('');
   const [postingComment, setPostingComment] = useState(false);
+  const [deletingCommentId, setDeletingCommentId] = useState(null);
 
   useEffect(() => {
     const fetchDetailAndData = async () => {
@@ -290,6 +291,20 @@ export default function CampaignDetailPage() {
       toast.error(err.response?.data?.message || err.message || 'Failed to post comment');
     } finally {
       setPostingComment(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    if (!window.confirm('Are you sure you want to delete this comment?')) return;
+    setDeletingCommentId(commentId);
+    try {
+      await campaignService.deleteCampaignComment(id, commentId);
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+      toast.success('Comment removed successfully');
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Failed to delete comment');
+    } finally {
+      setDeletingCommentId(null);
     }
   };
 
@@ -852,6 +867,12 @@ export default function CampaignDetailPage() {
                     const isCommentAuthorCreator =
                       String(cmt.user_id) === String(campaign.creator_id) ||
                       authorName.toLowerCase() === campaign.creator?.name?.toLowerCase();
+                    const isAdmin = currentUser?.user_type === 'Admin' || currentUser?.userType === 'Admin';
+                    const isCommentAuthor =
+                      currentUser &&
+                      (String(cmt.user_id) === String(currentUser.id) ||
+                        authorName.toLowerCase() === (currentUser.fullName || currentUser.name || '').toLowerCase());
+                    const canDelete = isAdmin || isCreator || isCommentAuthor;
 
                     return (
                       <div
@@ -876,9 +897,21 @@ export default function CampaignDetailPage() {
                               <p className="text-[11px] text-[#6B7280] mt-0.5">{authorDept}</p>
                             </div>
                           </div>
-                          <span className="text-[11px] text-[#6B7280]">
-                            {formatDate(cmt.created_at || cmt.createdAt)}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] text-[#6B7280]">
+                              {formatDate(cmt.created_at || cmt.createdAt)}
+                            </span>
+                            {canDelete && (
+                              <button
+                                onClick={() => handleDeleteComment(cmt.id)}
+                                disabled={deletingCommentId === cmt.id}
+                                className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                title="Delete comment"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
 
                         <p className="text-sm text-[#1F2937] leading-relaxed pl-12 whitespace-pre-line">

@@ -355,6 +355,24 @@ function handleInMemoryQuery(text, params) {
     };
   }
 
+  if (queryStr.includes('from campaigns') && (queryStr.includes('where creator_id =') || queryStr.includes('where c.creator_id ='))) {
+    const creatorId = parseInt(params[0], 10);
+    let list = inMemoryStore.campaigns.filter(c => c.creator_id === creatorId);
+    list = list.map(c => {
+      const creator = inMemoryStore.users.find(u => u.id === c.creator_id);
+      return {
+        ...c,
+        creator_name: creator ? creator.name : 'Unknown Creator',
+        creator_department: creator ? creator.department : '',
+        creator_email: creator ? creator.email : '',
+        creator_type: creator ? (creator.user_type || creator.userType) : 'Student',
+        creator_university_id: creator ? (creator.university_id || creator.universityId) : 'STU-2026'
+      };
+    });
+    list.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    return { rows: list };
+  }
+
   if (queryStr.includes('update campaigns') && queryStr.includes('status =')) {
     // UPDATE campaigns SET status = $1, admin_feedback = $2, verified_at = $3, verified_by = $4 WHERE id = $5
     let status, admin_feedback, verified_at, verified_by, id;
@@ -587,28 +605,79 @@ function handleInMemoryQuery(text, params) {
   }
 
   // COMMENTS QUERIES
+  if (queryStr.includes('delete from campaign_comments where id =')) {
+    const id = parseInt(params[0], 10);
+    const idx = (inMemoryStore.comments || []).findIndex(c => c.id === id);
+    if (idx !== -1) {
+      const deleted = inMemoryStore.comments.splice(idx, 1)[0];
+      return { rows: [deleted] };
+    }
+    return { rows: [] };
+  }
+
   if (queryStr.includes('from campaign_comments') || queryStr.includes('from "campaign_comments"')) {
-    const campaignId = parseInt(params[0], 10);
-    const list = inMemoryStore.comments
-      .filter(c => c.campaign_id === campaignId)
-      .map(c => {
-        const u = inMemoryStore.users.find(user => user.id === c.user_id);
-        return {
-          ...c,
-          user_name: u ? u.name : 'Campus Backer',
-          user_department: u ? u.department : 'University Department',
-          user_type: u ? u.user_type : 'Student'
-        };
-      });
-    list.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    return { rows: list };
+    let list = inMemoryStore.comments || [];
+
+    // Single comment lookup:
+    if (queryStr.includes('where id = $') || queryStr.includes('where c.id = $')) {
+      const commentId = parseInt(params[0], 10);
+      const c = list.find(item => item.id === commentId);
+      return { rows: c ? [c] : [] };
+    }
+
+    // Filter by user_id if present
+    const userMatch = queryStr.match(/c\.user_id = \$(\d+)|user_id = \$(\d+)/);
+    if (userMatch && params) {
+      const pIdx = parseInt(userMatch[1] || userMatch[2], 10) - 1;
+      const targetUserId = parseInt(params[pIdx], 10);
+      list = list.filter(c => c.user_id === targetUserId);
+    }
+
+    // Filter by campaign_id if present
+    const campMatch = queryStr.match(/c\.campaign_id = \$(\d+)|campaign_id = \$(\d+)/);
+    if (campMatch && params) {
+      const pIdx = parseInt(campMatch[1] || campMatch[2], 10) - 1;
+      const targetCampId = parseInt(params[pIdx], 10);
+      list = list.filter(c => c.campaign_id === targetCampId);
+    }
+
+    let enriched = list.map(c => {
+      const u = inMemoryStore.users.find(user => user.id === c.user_id);
+      const camp = inMemoryStore.campaigns.find(cp => cp.id === c.campaign_id);
+      return {
+        ...c,
+        user_name: u ? u.name : 'Campus Backer',
+        user_email: u ? u.email : '',
+        user_department: u ? u.department : 'University Department',
+        user_type: u ? (u.user_type || u.userType) : 'Student',
+        campaign_title: camp ? camp.title : 'University Initiative',
+        campaign_category: camp ? camp.category : 'General'
+      };
+    });
+
+    // Search filter if present
+    const searchMatch = queryStr.match(/ilike \$(\d+)/);
+    if (searchMatch && params) {
+      const pIdx = parseInt(searchMatch[1], 10) - 1;
+      const rawTerm = (params[pIdx] || '').replace(/%/g, '').toLowerCase().trim();
+      if (rawTerm) {
+        enriched = enriched.filter(c =>
+          (c.content && c.content.toLowerCase().includes(rawTerm)) ||
+          (c.user_name && c.user_name.toLowerCase().includes(rawTerm)) ||
+          (c.campaign_title && c.campaign_title.toLowerCase().includes(rawTerm))
+        );
+      }
+    }
+
+    enriched.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    return { rows: enriched };
   }
 
   if (queryStr.includes('insert into campaign_comments')) {
     const [campaign_id, user_id, content] = params;
     const user = inMemoryStore.users.find(u => u.id === parseInt(user_id, 10));
     const newComment = {
-      id: inMemoryStore.comments.length + 1,
+      id: (inMemoryStore.comments || []).length + 1,
       campaign_id: parseInt(campaign_id, 10),
       user_id: parseInt(user_id, 10),
       content,
@@ -617,16 +686,40 @@ function handleInMemoryQuery(text, params) {
       user_department: user ? user.department : 'University Department',
       user_type: user ? user.user_type : 'Student'
     };
+    if (!inMemoryStore.comments) inMemoryStore.comments = [];
     inMemoryStore.comments.push(newComment);
     return { rows: [newComment] };
   }
 
   // DONATIONS QUERIES
   if (queryStr.includes('from donations') || queryStr.includes('from "donations"')) {
-    const campaignId = parseInt(params[0], 10);
-    const list = inMemoryStore.donations.filter(d => d.campaign_id === campaignId);
+    let list = inMemoryStore.donations || [];
+
+    if (queryStr.includes('user_id = $1') || queryStr.includes('d.user_id = $1')) {
+      const userId = parseInt(params[0], 10);
+      const userDonations = list.filter(d => d.user_id === userId);
+      const enriched = userDonations.map(d => {
+        const camp = inMemoryStore.campaigns.find(c => c.id === d.campaign_id);
+        const creator = camp ? inMemoryStore.users.find(u => u.id === camp.creator_id) : null;
+        return {
+          ...d,
+          campaign_title: camp ? camp.title : 'University Campaign',
+          campaign_category: camp ? camp.category : 'General',
+          campaign_image: camp ? camp.image : null,
+          creator_name: creator ? creator.name : 'Campaign Creator'
+        };
+      });
+      enriched.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      return { rows: enriched };
+    }
+
+    if (params && params.length > 0 && (queryStr.includes('campaign_id = $1') || queryStr.includes('campaign_id ='))) {
+      const campaignId = parseInt(params[0], 10);
+      list = list.filter(d => d.campaign_id === campaignId);
+    }
+
     list.sort((a, b) => (b.amount || 0) - (a.amount || 0));
-    return { rows: list.slice(0, 10) };
+    return { rows: list.slice(0, 20) };
   }
 
   if (queryStr.includes('insert into donations')) {

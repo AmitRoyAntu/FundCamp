@@ -2,6 +2,7 @@ import { Campaign } from '../models/campaignModel.js';
 import { Expense } from '../models/expenseModel.js';
 import { User } from '../models/userModel.js';
 import { Report } from '../models/reportModel.js';
+import { CampaignComment } from '../models/commentModel.js';
 import { query } from '../config/db.js';
 
 export const getAdminStats = async (req, res) => {
@@ -524,3 +525,124 @@ export const resolveReport = async (req, res) => {
     });
   }
 };
+
+// ==========================================
+// COMMENT MODERATION
+// ==========================================
+export const getAdminComments = async (req, res) => {
+  try {
+    const { search, campaignId, userId } = req.query;
+    const comments = await CampaignComment.findAllForAdmin({ search, campaignId, userId });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Comments retrieved successfully',
+      data: comments,
+    });
+  } catch (error) {
+    console.error('Get Admin Comments Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error while fetching comments',
+      error: error.message,
+    });
+  }
+};
+
+export const deleteAdminComment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await CampaignComment.delete(id);
+
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        message: 'Comment not found',
+        error: `No comment found with id ${id}`,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Comment removed successfully',
+      data: deleted,
+    });
+  } catch (error) {
+    console.error('Delete Admin Comment Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error while deleting comment',
+      error: error.message,
+    });
+  }
+};
+
+// ==========================================
+// USER DOSSIER (FULL PROFILE INSPECTION)
+// ==========================================
+export const getAdminUserDossier = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Fetch user info
+    const userResult = await query('SELECT id, name, email, department, user_type, status, created_at FROM users WHERE id = $1', [id]);
+    const user = userResult.rows[0];
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+        error: `No user found with id ${id}`,
+      });
+    }
+
+    // Fetch user's campaigns
+    const campaignsResult = await query(
+      'SELECT id, title, category, goal_amount, amount_raised, status, created_at FROM campaigns WHERE creator_id = $1 ORDER BY created_at DESC',
+      [id]
+    );
+
+    // Fetch user's donations with campaign info
+    const donationsResult = await query(
+      `SELECT d.*, c.title as campaign_title, c.category as campaign_category, u.name as creator_name
+       FROM donations d
+       JOIN campaigns c ON d.campaign_id = c.id
+       LEFT JOIN users u ON c.creator_id = u.id
+       WHERE d.user_id = $1
+       ORDER BY d.created_at DESC`,
+      [id]
+    );
+
+    // Fetch user's comments with campaign info
+    const comments = await CampaignComment.findByUserId(id);
+
+    // Compute total donated
+    const totalDonated = donationsResult.rows.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+
+    return res.status(200).json({
+      success: true,
+      message: 'User dossier retrieved successfully',
+      data: {
+        user,
+        campaigns: campaignsResult.rows,
+        donations: donationsResult.rows,
+        comments,
+        totalDonated,
+        summary: {
+          campaignsCreated: campaignsResult.rows.length,
+          totalDonations: donationsResult.rows.length,
+          totalComments: comments.length,
+          totalDonated,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Get Admin User Dossier Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error while fetching user dossier',
+      error: error.message,
+    });
+  }
+};
+

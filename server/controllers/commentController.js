@@ -63,3 +63,56 @@ export const createComment = async (req, res) => {
     });
   }
 };
+
+export const deleteComment = async (req, res) => {
+  try {
+    const { commentId } = req.params;
+    const userId = req.user.id;
+    const userType = req.user.user_type || req.user.userType;
+
+    // Fetch the comment first to check ownership
+    const { query: dbQuery } = await import('../config/db.js');
+    const commentResult = await dbQuery(
+      'SELECT * FROM campaign_comments WHERE id = $1',
+      [commentId]
+    );
+    const comment = commentResult.rows[0];
+
+    if (!comment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Comment not found',
+        error: `No comment found with id ${commentId}`,
+      });
+    }
+
+    // Allow deletion by: Admin, comment author, or campaign creator
+    const campaign = await Campaign.findById(comment.campaign_id);
+    const isCampaignCreator = campaign && String(campaign.creator_id) === String(userId);
+    const isCommentAuthor = String(comment.user_id) === String(userId);
+    const isAdmin = userType === 'Admin';
+
+    if (!isAdmin && !isCommentAuthor && !isCampaignCreator) {
+      return res.status(403).json({
+        success: false,
+        message: 'Permission denied',
+        error: 'You do not have permission to delete this comment',
+      });
+    }
+
+    const deleted = await CampaignComment.delete(commentId);
+    return res.status(200).json({
+      success: true,
+      message: 'Comment deleted successfully',
+      data: deleted,
+    });
+  } catch (error) {
+    console.error('Delete Comment Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message,
+    });
+  }
+};
+

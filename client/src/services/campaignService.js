@@ -209,6 +209,12 @@ export const campaignService = {
     return response.data.data;
   },
 
+  // DELETE /api/campaigns/:id/comments/:commentId
+  async deleteCampaignComment(campaignId, commentId) {
+    const response = await apiClient.delete(`/campaigns/${campaignId}/comments/${commentId}`);
+    return response.data.data;
+  },
+
   // POST /api/campaigns/:id/donate
   async donateToCampaign(id, { amount, donorName, paymentMethod }) {
     const response = await apiClient.post(`/campaigns/${id}/donate`, {

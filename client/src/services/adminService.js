@@ -98,4 +98,28 @@ export const adminService = {
     });
     return response.data.data;
   },
+
+  // GET /api/admin/comments
+  async getComments(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.search && filters.search.trim()) params.append('search', filters.search.trim());
+    if (filters.campaignId) params.append('campaignId', filters.campaignId);
+    if (filters.userId) params.append('userId', filters.userId);
+
+    const url = `/admin/comments${params.toString() ? `?${params.toString()}` : ''}`;
+    const response = await apiClient.get(url);
+    return response.data.data;
+  },
+
+  // DELETE /api/admin/comments/:id
+  async deleteComment(commentId) {
+    const response = await apiClient.delete(`/admin/comments/${commentId}`);
+    return response.data.data;
+  },
+
+  // GET /api/admin/users/:id/dossier
+  async getUserDossier(userId) {
+    const response = await apiClient.get(`/admin/users/${userId}/dossier`);
+    return response.data.data;
+  },
 };

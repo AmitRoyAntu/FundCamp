@@ -11,6 +11,9 @@ import {
   updateUserStatus,
   getAdminReports,
   resolveReport,
+  getAdminComments,
+  deleteAdminComment,
+  getAdminUserDossier,
 } from '../controllers/adminController.js';
 import { verifyAdmin } from '../middleware/adminMiddleware.js';
 
@@ -33,8 +36,15 @@ router.put('/admin/expenses/:id/status', verifyAdmin, verifyExpense);
 router.get('/admin/users', verifyAdmin, getAdminUsers);
 router.put('/admin/users/:id/status', verifyAdmin, updateUserStatus);
 
+// Admin User Dossier (Full Profile Inspection)
+router.get('/admin/users/:id/dossier', verifyAdmin, getAdminUserDossier);
+
 // Admin Fraud & Moderation Reports Queue
 router.get('/admin/reports', verifyAdmin, getAdminReports);
 router.put('/admin/reports/:id/status', verifyAdmin, resolveReport);
+
+// Admin Comment Moderation
+router.get('/admin/comments', verifyAdmin, getAdminComments);
+router.delete('/admin/comments/:id', verifyAdmin, deleteAdminComment);
 
 export default router;
