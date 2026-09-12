@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { adminService } from '../../services/adminService';
-import PageHeader from '../../components/common/PageHeader';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import SearchBar from '../../components/common/SearchBar';
@@ -56,6 +55,9 @@ export default function AdminDashboardPage() {
 
   // Active Tab State: 'overview' | 'queue' | 'reports' | 'users' | 'expenses' | 'campaigns'
   const [activeTab, setActiveTab] = useState('overview');
+
+  // Trend Chart Selected Metric: 'volume' | 'campaigns' | 'users'
+  const [trendMetric, setTrendMetric] = useState('volume');
 
   // Loading States
   const [loading, setLoading] = useState(true);
@@ -374,28 +376,101 @@ export default function AdminDashboardPage() {
   const verifiedExpensesCount = expenses.filter((e) => e.status === 'verified').length;
 
   const totalRaised = stats?.campaigns?.totalRaised ?? campaigns.reduce((acc, c) => acc + (parseFloat(c.amount_raised) || 0), 0);
-  const totalGoal = stats?.campaigns?.totalGoal ?? campaigns.reduce((acc, c) => acc + (parseFloat(c.goal_amount) || 0), 0);
-  const goalPercentage = totalGoal > 0 ? Math.min(100, Math.round((totalRaised / totalGoal) * 100)) : 0;
 
-  // Monthly Volume for Bar Chart
-  const monthlyData = stats?.monthlyVolume || [
-    { month: 'Oct', volume: 1500, count: 4 },
-    { month: 'Nov', volume: 2200, count: 6 },
-    { month: 'Dec', volume: 3800, count: 9 },
-    { month: 'Jan', volume: 5400, count: 14 },
-    { month: 'Feb', volume: 8200, count: 19 },
-    { month: 'Mar', volume: totalRaised || 11700, count: campaigns.length || 4 },
+  // Monthly trends data
+  const rawMonthlyTrends = stats?.monthlyTrends || stats?.monthlyVolume || [
+    { month: 'Oct', volume: 1500, campaigns: 1, users: 1 },
+    { month: 'Nov', volume: 2200, campaigns: 2, users: 1 },
+    { month: 'Dec', volume: 3800, campaigns: 2, users: 2 },
+    { month: 'Jan', volume: 5400, campaigns: 3, users: 2 },
+    { month: 'Feb', volume: 8200, campaigns: 3, users: 3 },
+    { month: 'Mar', volume: totalRaised || 11700, campaigns: campaigns.length || 4, users: users.length || 3 },
   ];
-  const maxMonthVolume = Math.max(...monthlyData.map((m) => m.volume), 1);
 
-  // Sidebar navigation tabs definition
+  // Configure trend metric options
+  const trendConfig = {
+    volume: {
+      title: 'Donations Growth Trend',
+      description: 'Monthly capital contributions received across all faculties',
+      color: '#007979',
+      lightColor: '#24B1B1',
+      badge: '+42.7% MoM',
+      getValue: (d) => d.volume || 0,
+      formatVal: (v) => formatCurrency(v),
+      formatShort: (v) => `৳${Math.round(v / 1000)}k`,
+      currentTotal: formatCurrency(totalRaised || 11700),
+      summaryLabel: 'Total Platform Volume',
+    },
+    campaigns: {
+      title: 'Initiatives Growth Trend',
+      description: 'Submitted and launched student & faculty initiatives per month',
+      color: '#E37434',
+      lightColor: '#F59E0B',
+      badge: '+33.3% MoM',
+      getValue: (d) => d.campaigns || 1,
+      formatVal: (v) => `${v} campaigns`,
+      formatShort: (v) => `${v}`,
+      currentTotal: `${campaigns.length || 4} Campaigns`,
+      summaryLabel: 'Total Initiatives',
+    },
+    users: {
+      title: 'User Registration Trend',
+      description: 'New verified campus members (students, faculty, administrators)',
+      color: '#2563EB',
+      lightColor: '#60A5FA',
+      badge: '+50.0% MoM',
+      getValue: (d) => d.users || 1,
+      formatVal: (v) => `${v} users`,
+      formatShort: (v) => `${v}`,
+      currentTotal: `${users.length || 3} Accounts`,
+      summaryLabel: 'Total Campus Members',
+    },
+  };
+
+  const currentTrend = trendConfig[trendMetric];
+  const trendValues = rawMonthlyTrends.map((d) => currentTrend.getValue(d));
+  const maxTrendVal = Math.max(...trendValues, 1);
+
+  // Calculate SVG curve & bar coordinates
+  // SVG ViewBox: 0 0 680 200
+  const svgWidth = 680;
+  const svgHeight = 200;
+  const paddingLeft = 55;
+  const paddingRight = 35;
+  const paddingTop = 25;
+  const paddingBottom = 35;
+  const chartHeight = svgHeight - paddingTop - paddingBottom; // 140
+  const chartWidth = svgWidth - paddingLeft - paddingRight; // 590
+
+  const points = rawMonthlyTrends.map((item, i) => {
+    const x = paddingLeft + (i / (rawMonthlyTrends.length - 1)) * chartWidth;
+    const val = currentTrend.getValue(item);
+    const normalized = maxTrendVal > 0 ? val / maxTrendVal : 0;
+    const y = paddingTop + chartHeight * (1 - normalized);
+    return { x, y, val, month: item.month };
+  });
+
+  // Construct smooth SVG Bezier curve path
+  const linePathD = points.reduce((acc, pt, i, arr) => {
+    if (i === 0) return `M ${pt.x},${pt.y}`;
+    const prev = arr[i - 1];
+    const cpX1 = prev.x + (pt.x - prev.x) / 2;
+    const cpY1 = prev.y;
+    const cpX2 = prev.x + (pt.x - prev.x) / 2;
+    const cpY2 = pt.y;
+    return `${acc} C ${cpX1},${cpY1} ${cpX2},${cpY2} ${pt.x},${pt.y}`;
+  }, '');
+
+  // Area under the curve
+  const areaPathD = `${linePathD} L ${points[points.length - 1].x},${paddingTop + chartHeight} L ${points[0].x},${paddingTop + chartHeight} Z`;
+
+  // Sidebar navigation items
   const sidebarItems = [
     {
       id: 'overview',
       label: 'Platform Overview',
       icon: LayoutDashboard,
       badge: null,
-      description: 'System stats & charts',
     },
     {
       id: 'queue',
@@ -403,7 +478,6 @@ export default function AdminDashboardPage() {
       icon: ShieldCheck,
       badge: pendingCampaignsCount,
       badgeColor: 'amber',
-      description: 'Review pending initiatives',
     },
     {
       id: 'reports',
@@ -411,7 +485,6 @@ export default function AdminDashboardPage() {
       icon: ShieldAlert,
       badge: pendingReportsCount,
       badgeColor: 'red',
-      description: 'Investigate complaints',
     },
     {
       id: 'users',
@@ -419,7 +492,6 @@ export default function AdminDashboardPage() {
       icon: Users,
       badge: deactivatedUsersCount > 0 ? `${deactivatedUsersCount} Suspended` : null,
       badgeColor: 'gray',
-      description: 'Student & faculty access',
     },
     {
       id: 'expenses',
@@ -427,7 +499,6 @@ export default function AdminDashboardPage() {
       icon: Receipt,
       badge: pendingExpensesCount,
       badgeColor: 'blue',
-      description: 'Financial accountability',
     },
     {
       id: 'campaigns',
@@ -435,64 +506,64 @@ export default function AdminDashboardPage() {
       icon: Layers,
       badge: campaigns.length,
       badgeColor: 'teal',
-      description: 'Manage & direct removal',
     },
   ];
 
   if (loading) {
-    return <Loader text="Loading University Administration Hub..." />;
+    return <Loader text="Loading Administration Hub..." />;
   }
 
   return (
-    <div className="space-y-6 pb-16">
-      {/* Top Header */}
-      <PageHeader
-        title="University Verification & Moderation Hub"
-        description="Official campus administration gateway to monitor platform metrics, verify submitted initiatives, resolve policy reports, and oversee user governance."
-      >
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRefresh}
-          isLoading={refreshing}
-          icon={RefreshCw}
-        >
-          Refresh Data
-        </Button>
-      </PageHeader>
+    <div className="space-y-4 pb-12 w-full">
+      {/* Minimal Top Breadcrumb & Refresh Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-200">
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Admin Portal</span>
+          <span className="text-gray-300">•</span>
+          <h2 className="text-base sm:text-lg font-extrabold text-gray-900">
+            {sidebarItems.find((i) => i.id === activeTab)?.label || 'Platform Overview'}
+          </h2>
+        </div>
 
-      {/* Main Two-Column Layout: Left Side Navbar + Right Content */}
-      <div className="flex flex-col lg:flex-row gap-6 items-start">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            isLoading={refreshing}
+            icon={RefreshCw}
+            className="text-xs font-semibold text-gray-700 bg-white hover:bg-gray-50 border-gray-200 shadow-2xs"
+          >
+            Refresh Data
+          </Button>
+        </div>
+      </div>
+
+      {/* Main Two-Column Layout: Compact Left Sidebar + Stretched Workspace */}
+      <div className="flex flex-col lg:flex-row gap-5 items-start w-full">
         {/* ========================================================================= */}
-        {/* LEFT SIDE NAVBAR (STICKY DESKTOP, HORIZONTAL MOBILE) */}
+        {/* COMPACT LEFT SIDE NAVBAR */}
         {/* ========================================================================= */}
-        <aside className="w-full lg:w-72 xl:w-80 shrink-0">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-xs p-4 sticky top-20 space-y-4">
-            {/* Admin Profile Mini Card */}
-            <div className="p-3 bg-gradient-to-br from-[#007979]/10 to-[#24B1B1]/5 rounded-xl border border-[#007979]/20 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#007979] text-white flex items-center justify-center font-bold text-sm shadow-xs">
+        <aside className="w-full lg:w-60 xl:w-64 shrink-0">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-xs p-3 sticky top-20 space-y-3">
+            {/* Admin Mini Profile */}
+            <div className="p-2.5 bg-gradient-to-br from-[#007979]/10 to-[#24B1B1]/5 rounded-xl border border-[#007979]/20 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-[#007979] text-white flex items-center justify-center font-bold text-xs shadow-2xs">
                 ADM
               </div>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <p className="text-xs font-bold text-gray-900 truncate">
-                    {currentUser?.fullName || 'Campus Administrator'}
-                  </p>
-                  <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-[#007979] text-white">
-                    PORTAL
-                  </span>
-                </div>
-                <p className="text-[11px] text-gray-500 truncate">
-                  {currentUser?.department || 'Student Affairs & Research'}
+                <p className="text-xs font-bold text-gray-900 truncate leading-tight">
+                  {currentUser?.fullName || 'Campus Administrator'}
+                </p>
+                <p className="text-[10px] text-gray-500 truncate">
+                  {currentUser?.department || 'Student Affairs'}
                 </p>
               </div>
             </div>
 
             {/* Navigation Menu Links */}
-            <div className="space-y-1">
-              <p className="px-3 py-1 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-                Management Modules
-              </p>
+            <nav className="space-y-1">
               {sidebarItems.map((item) => {
                 const Icon = item.icon;
                 const isSelected = activeTab === item.id;
@@ -501,33 +572,24 @@ export default function AdminDashboardPage() {
                     key={item.id}
                     type="button"
                     onClick={() => setActiveTab(item.id)}
-                    className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer text-left ${
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer text-left ${
                       isSelected
                         ? 'bg-[#007979] text-white shadow-xs font-bold'
                         : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
                     }`}
                   >
-                    <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex items-center gap-2.5 min-w-0">
                       <Icon
-                        className={`w-4.5 h-4.5 shrink-0 ${
+                        className={`w-4 h-4 shrink-0 ${
                           isSelected ? 'text-white' : 'text-[#007979]'
                         }`}
                       />
-                      <div className="truncate">
-                        <p className="leading-tight truncate">{item.label}</p>
-                        <p
-                          className={`text-[11px] font-normal truncate ${
-                            isSelected ? 'text-white/80' : 'text-gray-400'
-                          }`}
-                        >
-                          {item.description}
-                        </p>
-                      </div>
+                      <span className="truncate">{item.label}</span>
                     </div>
 
                     {item.badge !== null && item.badge !== undefined && (
                       <span
-                        className={`ml-2 px-2 py-0.5 rounded-full text-xs font-extrabold shrink-0 ${
+                        className={`ml-1.5 px-2 py-0.5 rounded-full text-[11px] font-extrabold shrink-0 ${
                           isSelected
                             ? 'bg-white/20 text-white'
                             : item.badgeColor === 'red'
@@ -545,22 +607,15 @@ export default function AdminDashboardPage() {
                   </button>
                 );
               })}
-            </div>
+            </nav>
 
             {/* Quick Status Pill */}
-            <div className="pt-3 border-t border-gray-100 px-2 space-y-2">
-              <div className="flex items-center justify-between text-xs text-gray-500">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                  <span>Platform Gateway</span>
-                </span>
-                <span className="font-bold text-emerald-600">Online</span>
+            <div className="pt-2.5 border-t border-gray-100 px-1 text-[11px] text-gray-500 space-y-1">
+              <div className="flex items-center justify-between">
+                <span>Active Campaigns:</span>
+                <span className="font-bold text-gray-800">{campaigns.length}</span>
               </div>
-              <div className="flex items-center justify-between text-[11px] text-gray-400">
-                <span>Total Campaigns:</span>
-                <span className="font-semibold text-gray-700">{campaigns.length}</span>
-              </div>
-              <div className="flex items-center justify-between text-[11px] text-gray-400">
+              <div className="flex items-center justify-between">
                 <span>Raised Volume:</span>
                 <span className="font-bold text-[#E37434]">{formatCurrency(totalRaised)}</span>
               </div>
@@ -569,76 +624,19 @@ export default function AdminDashboardPage() {
         </aside>
 
         {/* ========================================================================= */}
-        {/* RIGHT WORKSPACE AREA */}
+        {/* STRETCHED RIGHT WORKSPACE */}
         {/* ========================================================================= */}
-        <main className="flex-1 min-w-0 w-full space-y-6">
+        <main className="flex-1 min-w-0 w-full space-y-5">
           {/* ========================================================================= */}
-          {/* MODULE 1: PLATFORM OVERVIEW (COMBINED COMPREHENSIVE DASHBOARD) */}
+          {/* MODULE 1: PLATFORM OVERVIEW (CLEAN DASHBOARD WITHOUT DUPLICATE ALERTS) */}
           {/* ========================================================================= */}
           {activeTab === 'overview' && (
-            <div className="space-y-6">
-              {/* Urgent Action Center / Triage Banners */}
-              {(pendingCampaignsCount > 0 || pendingReportsCount > 0 || pendingExpensesCount > 0) && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {pendingCampaignsCount > 0 && (
-                    <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200/80 flex items-center justify-between gap-3 shadow-xs">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
-                          <Clock className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-amber-900">
-                            {pendingCampaignsCount} Campaign{pendingCampaignsCount > 1 ? 's' : ''} Awaiting Clearance
-                          </p>
-                          <p className="text-xs text-amber-700">
-                            Review documents before public publication
-                          </p>
-                        </div>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setActiveTab('queue')}
-                        className="bg-white border-amber-300 text-amber-800 hover:bg-amber-100 shrink-0"
-                      >
-                        Open Queue →
-                      </Button>
-                    </div>
-                  )}
-
-                  {pendingReportsCount > 0 && (
-                    <div className="p-4 rounded-2xl bg-red-50/80 border border-red-200/80 flex items-center justify-between gap-3 shadow-xs">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                          <ShieldAlert className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-red-900">
-                            {pendingReportsCount} Fraud Complaint Pending
-                          </p>
-                          <p className="text-xs text-red-700">
-                            Urgent policy violation filed by campus member
-                          </p>
-                        </div>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setActiveTab('reports')}
-                        className="bg-white border-red-300 text-red-800 hover:bg-red-100 shrink-0"
-                      >
-                        Investigate →
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* 4 Core KPI Summary Cards (The Upper Screenshot Cards) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="space-y-5">
+              {/* 4 Clean Actionable KPI Cards (NO DUPLICATE BANNERS) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
                 {/* Metric 1: Verification Queue */}
                 <Card
-                  className="p-5 border-l-4 border-l-amber-500 bg-white shadow-xs cursor-pointer hover:shadow-md transition-shadow"
+                  className="p-5 border-l-4 border-l-amber-500 bg-white shadow-xs cursor-pointer hover:shadow-md hover:border-amber-400 transition-all group"
                   onClick={() => setActiveTab('queue')}
                 >
                   <div className="flex items-center justify-between">
@@ -649,19 +647,20 @@ export default function AdminDashboardPage() {
                       <h3 className="text-3xl font-extrabold text-gray-900 mt-1">
                         {pendingCampaignsCount}
                       </h3>
-                      <p className="text-xs text-amber-600 font-semibold mt-1">
-                        Campaigns Awaiting Clearance
+                      <p className="text-xs text-amber-600 font-semibold mt-1 flex items-center gap-1 group-hover:underline">
+                        <span>Campaigns Awaiting Review</span>
+                        <ChevronRight className="w-3.5 h-3.5 inline" />
                       </p>
                     </div>
-                    <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                      <Clock className="w-6 h-6" />
+                    <div className="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                      <Clock className="w-5 h-5" />
                     </div>
                   </div>
                 </Card>
 
                 {/* Metric 2: Fraud & Moderation Reports */}
                 <Card
-                  className={`p-5 border-l-4 ${pendingReportsCount > 0 ? 'border-l-red-500' : 'border-l-gray-300'} bg-white shadow-xs cursor-pointer hover:shadow-md transition-shadow`}
+                  className={`p-5 border-l-4 ${pendingReportsCount > 0 ? 'border-l-red-500' : 'border-l-gray-300'} bg-white shadow-xs cursor-pointer hover:shadow-md transition-all group`}
                   onClick={() => setActiveTab('reports')}
                 >
                   <div className="flex items-center justify-between">
@@ -672,19 +671,20 @@ export default function AdminDashboardPage() {
                       <h3 className={`text-3xl font-extrabold ${pendingReportsCount > 0 ? 'text-red-600' : 'text-gray-900'} mt-1`}>
                         {pendingReportsCount}
                       </h3>
-                      <p className="text-xs text-red-600 font-semibold mt-1">
-                        {pendingReportsCount > 0 ? 'Urgent Investigation Needed' : 'No Pending Complaints'}
+                      <p className="text-xs text-red-600 font-semibold mt-1 flex items-center gap-1 group-hover:underline">
+                        <span>{pendingReportsCount > 0 ? 'Urgent Review Needed' : 'No Open Complaints'}</span>
+                        <ChevronRight className="w-3.5 h-3.5 inline" />
                       </p>
                     </div>
-                    <div className={`w-12 h-12 rounded-2xl ${pendingReportsCount > 0 ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-500'} flex items-center justify-center`}>
-                      <ShieldAlert className="w-6 h-6" />
+                    <div className={`w-11 h-11 rounded-xl ${pendingReportsCount > 0 ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-500'} flex items-center justify-center`}>
+                      <ShieldAlert className="w-5 h-5" />
                     </div>
                   </div>
                 </Card>
 
                 {/* Metric 3: Campus User Accounts */}
                 <Card
-                  className="p-5 border-l-4 border-l-[#007979] bg-white shadow-xs cursor-pointer hover:shadow-md transition-shadow"
+                  className="p-5 border-l-4 border-l-[#007979] bg-white shadow-xs cursor-pointer hover:shadow-md transition-all group"
                   onClick={() => setActiveTab('users')}
                 >
                   <div className="flex items-center justify-between">
@@ -695,18 +695,22 @@ export default function AdminDashboardPage() {
                       <h3 className="text-3xl font-extrabold text-[#007979] mt-1">
                         {users.length}
                       </h3>
-                      <p className="text-xs text-gray-500 font-medium mt-1">
-                        {activeUsersCount} Active • <span className={deactivatedUsersCount > 0 ? 'text-red-600 font-bold' : ''}>{deactivatedUsersCount} Suspended</span>
+                      <p className="text-xs text-gray-500 font-medium mt-1 flex items-center gap-1 group-hover:underline">
+                        <span>{activeUsersCount} Active • <strong className={deactivatedUsersCount > 0 ? 'text-red-600' : ''}>{deactivatedUsersCount} Suspended</strong></span>
+                        <ChevronRight className="w-3.5 h-3.5 inline" />
                       </p>
                     </div>
-                    <div className="w-12 h-12 rounded-2xl bg-[#007979]/10 text-[#007979] flex items-center justify-center">
-                      <Users className="w-6 h-6" />
+                    <div className="w-11 h-11 rounded-xl bg-[#007979]/10 text-[#007979] flex items-center justify-center">
+                      <Users className="w-5 h-5" />
                     </div>
                   </div>
                 </Card>
 
                 {/* Metric 4: Total Raised Volume */}
-                <Card className="p-5 border-l-4 border-l-[#E37434] bg-white shadow-xs">
+                <Card
+                  className="p-5 border-l-4 border-l-[#E37434] bg-white shadow-xs cursor-pointer hover:shadow-md transition-all"
+                  onClick={() => setActiveTab('campaigns')}
+                >
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
@@ -716,117 +720,216 @@ export default function AdminDashboardPage() {
                         {formatCurrency(totalRaised)}
                       </h3>
                       <p className="text-xs text-gray-500 mt-1">
-                        Target: {formatCurrency(totalGoal)} ({goalPercentage}%)
+                        Across {campaigns.length} university initiatives
                       </p>
                     </div>
-                    <div className="w-12 h-12 rounded-2xl bg-[#E37434]/10 text-[#E37434] flex items-center justify-center">
-                      <Coins className="w-6 h-6" />
+                    <div className="w-11 h-11 rounded-xl bg-[#E37434]/10 text-[#E37434] flex items-center justify-center">
+                      <Coins className="w-5 h-5" />
                     </div>
                   </div>
                 </Card>
               </div>
 
-              {/* Month-by-Month Fundraising Volume Bar Chart */}
-              <Card className="p-6 border border-gray-200 shadow-xs space-y-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              {/* Interactive Trend Chart with Metric Switcher (Line Curve + Bars) */}
+              <Card className="p-5 sm:p-6 border border-gray-200 shadow-xs space-y-4">
+                {/* Header with Switcher Options */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
                     <div className="flex items-center gap-2">
-                      <BarChart3 className="w-5 h-5 text-[#007979]" />
-                      <h3 className="text-lg font-bold text-gray-900">
-                        Monthly Backing Volume & Trend Analysis
+                      <BarChart3 className="w-5 h-5" style={{ color: currentTrend.color }} />
+                      <h3 className="text-base sm:text-lg font-bold text-gray-900">
+                        {currentTrend.title}
                       </h3>
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <TrendingUp className="w-3 h-3" />
+                        {currentTrend.badge}
+                      </span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Platform-wide verified monthly capital contributions across student, faculty, and research initiatives.
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {currentTrend.description}
                     </p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      <TrendingUp className="w-3.5 h-3.5" />
-                      +42.7% MoM Growth
-                    </span>
-                    <span className="text-xs font-semibold text-gray-500">
-                      Last 6 Months
-                    </span>
+
+                  {/* Metric Switcher Segmented Control */}
+                  <div className="inline-flex items-center p-1 bg-gray-100 rounded-xl border border-gray-200 shrink-0 self-start md:self-center">
+                    <button
+                      type="button"
+                      onClick={() => setTrendMetric('volume')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        trendMetric === 'volume'
+                          ? 'bg-white text-[#007979] shadow-xs'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      💰 Donations (৳)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTrendMetric('campaigns')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        trendMetric === 'campaigns'
+                          ? 'bg-white text-[#E37434] shadow-xs'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      🚀 Campaigns
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTrendMetric('users')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        trendMetric === 'users'
+                          ? 'bg-white text-[#2563EB] shadow-xs'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      👥 New Users
+                    </button>
                   </div>
                 </div>
 
-                {/* SVG/CSS Interactive Bar Chart */}
-                <div className="space-y-2">
-                  <div className="h-60 flex items-end justify-between gap-3 pt-8 pb-2 px-4 bg-gray-50/70 rounded-2xl border border-gray-100">
-                    {monthlyData.map((item, idx) => {
-                      const heightPercent = Math.max(12, Math.round((item.volume / maxMonthVolume) * 100));
-                      const isCurrentMonth = idx === monthlyData.length - 1;
+                {/* Metric Summary Strip */}
+                <div className="flex items-center gap-6 py-2 px-3 bg-gray-50 rounded-xl border border-gray-100 text-xs">
+                  <div>
+                    <span className="text-gray-400 font-medium">{currentTrend.summaryLabel}: </span>
+                    <strong className="text-gray-900 font-bold">{currentTrend.currentTotal}</strong>
+                  </div>
+                  <div className="hidden sm:block text-gray-300">•</div>
+                  <div className="hidden sm:block">
+                    <span className="text-gray-400 font-medium">Reporting Range: </span>
+                    <strong className="text-gray-900 font-bold">Past 6 Months (Oct – Mar)</strong>
+                  </div>
+                </div>
 
-                      return (
-                        <div
-                          key={item.month}
-                          className="flex-1 flex flex-col items-center h-full justify-end group relative"
-                        >
-                          {/* Tooltip on Hover */}
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-9 bg-gray-900 text-white text-[11px] font-bold py-1 px-2.5 rounded-lg whitespace-nowrap pointer-events-none shadow-md z-10">
-                            {item.month}: {formatCurrency(item.volume)}
-                            <div className="text-[9px] text-gray-300 font-normal">
-                              {item.count} campaigns active
-                            </div>
-                          </div>
+                {/* SVG Visual Chart (Smooth Curve + Translucent Bars) */}
+                <div className="w-full overflow-x-auto">
+                  <div className="min-w-[500px]">
+                    <svg
+                      viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+                      className="w-full h-56 sm:h-64 select-none"
+                    >
+                      <defs>
+                        {/* Gradient for area under curve */}
+                        <linearGradient id="curveGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor={currentTrend.color} stopOpacity="0.22" />
+                          <stop offset="100%" stopColor={currentTrend.color} stopOpacity="0.01" />
+                        </linearGradient>
 
-                          {/* Bar Fill */}
-                          <div className="w-full max-w-[48px] flex flex-col items-center">
-                            <span className="text-[11px] font-bold mb-1 text-gray-700 opacity-0 group-hover:opacity-100 transition-opacity">
-                              {formatCurrency(item.volume)}
-                            </span>
-                            <div
-                              className={`w-full rounded-t-xl transition-all duration-500 group-hover:scale-y-105 origin-bottom ${
-                                isCurrentMonth
-                                  ? 'bg-gradient-to-t from-[#007979] to-[#24B1B1] shadow-xs'
-                                  : 'bg-gradient-to-t from-gray-300 to-[#007979]/40 group-hover:from-[#007979]/60 group-hover:to-[#24B1B1]/70'
-                              }`}
-                              style={{ height: `${heightPercent}%` }}
+                        {/* Gradient for bars */}
+                        <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor={currentTrend.lightColor} stopOpacity="0.85" />
+                          <stop offset="100%" stopColor={currentTrend.color} stopOpacity="0.95" />
+                        </linearGradient>
+                      </defs>
+
+                      {/* Horizontal Gridlines */}
+                      <line x1={paddingLeft - 15} y1={paddingTop} x2={svgWidth - paddingRight + 15} y2={paddingTop} stroke="#F3F4F6" strokeWidth="1" strokeDasharray="4 4" />
+                      <line x1={paddingLeft - 15} y1={paddingTop + chartHeight / 2} x2={svgWidth - paddingRight + 15} y2={paddingTop + chartHeight / 2} stroke="#F3F4F6" strokeWidth="1" strokeDasharray="4 4" />
+                      <line x1={paddingLeft - 15} y1={paddingTop + chartHeight} x2={svgWidth - paddingRight + 15} y2={paddingTop + chartHeight} stroke="#E5E7EB" strokeWidth="1" />
+
+                      {/* Y-Axis Value Labels */}
+                      <text x={paddingLeft - 20} y={paddingTop + 4} textAnchor="end" fontSize="10" fontWeight="600" fill="#9CA3AF">
+                        {currentTrend.formatShort(maxTrendVal)}
+                      </text>
+                      <text x={paddingLeft - 20} y={paddingTop + chartHeight / 2 + 3} textAnchor="end" fontSize="10" fontWeight="600" fill="#9CA3AF">
+                        {currentTrend.formatShort(maxTrendVal / 2)}
+                      </text>
+                      <text x={paddingLeft - 20} y={paddingTop + chartHeight + 3} textAnchor="end" fontSize="10" fontWeight="600" fill="#9CA3AF">
+                        0
+                      </text>
+
+                      {/* Bars for Each Month */}
+                      {points.map((pt, i) => {
+                        const barWidth = 32;
+                        const barHeight = Math.max(8, paddingTop + chartHeight - pt.y);
+                        const isLatest = i === points.length - 1;
+
+                        return (
+                          <g key={pt.month} className="group">
+                            <rect
+                              x={pt.x - barWidth / 2}
+                              y={pt.y}
+                              width={barWidth}
+                              height={barHeight}
+                              rx="6"
+                              fill={isLatest ? 'url(#barGradient)' : currentTrend.lightColor}
+                              fillOpacity={isLatest ? 1 : 0.45}
+                              className="transition-all duration-300 hover:fill-opacity-90 cursor-pointer"
                             />
-                          </div>
+                            {/* Value label directly above bar */}
+                            <text
+                              x={pt.x}
+                              y={pt.y - 7}
+                              textAnchor="middle"
+                              fontSize="11"
+                              fontWeight="bold"
+                              fill={isLatest ? currentTrend.color : '#4B5563'}
+                            >
+                              {currentTrend.formatShort(pt.val)}
+                            </text>
+                          </g>
+                        );
+                      })}
 
-                          {/* Month Label */}
-                          <span className={`text-xs mt-2 font-semibold ${isCurrentMonth ? 'text-[#007979] font-bold' : 'text-gray-500'}`}>
-                            {item.month}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                      {/* Gradient Area Fill under Curve */}
+                      <path d={areaPathD} fill="url(#curveGradient)" />
 
-                {/* Progress Meter: Goal vs Raised */}
-                <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 space-y-2">
-                  <div className="flex justify-between text-xs font-bold text-gray-700">
-                    <span>Overall Platform Goal Progress</span>
-                    <span className="text-[#E37434]">
-                      {formatCurrency(totalRaised)} / {formatCurrency(totalGoal)} ({goalPercentage}%)
-                    </span>
-                  </div>
-                  <div className="w-full h-3 rounded-full bg-gray-200 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-[#007979] via-[#24B1B1] to-[#E37434] transition-all duration-500"
-                      style={{ width: `${goalPercentage}%` }}
-                    />
+                      {/* Smooth Line Curve */}
+                      <path
+                        d={linePathD}
+                        fill="none"
+                        stroke={currentTrend.color}
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+
+                      {/* Data Point Circles on the Line */}
+                      {points.map((pt, i) => {
+                        const isLatest = i === points.length - 1;
+                        return (
+                          <g key={`dot-${pt.month}`}>
+                            <circle
+                              cx={pt.x}
+                              cy={pt.y}
+                              r={isLatest ? 6 : 4.5}
+                              fill="#FFFFFF"
+                              stroke={currentTrend.color}
+                              strokeWidth={isLatest ? 3 : 2}
+                            />
+                            {/* Month Label on X-Axis */}
+                            <text
+                              x={pt.x}
+                              y={svgHeight - 12}
+                              textAnchor="middle"
+                              fontSize="11"
+                              fontWeight={isLatest ? 'bold' : '600'}
+                              fill={isLatest ? currentTrend.color : '#6B7280'}
+                            >
+                              {pt.month}
+                            </text>
+                          </g>
+                        );
+                      })}
+                    </svg>
                   </div>
                 </div>
               </Card>
 
-              {/* Two-Column Breakdown: Categories & Departments */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Two-Column Breakdown: Categories & Academic Departments */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* Category Distribution */}
-                <Card className="p-6 border border-gray-200 shadow-xs space-y-4">
+                <Card className="p-5 border border-gray-200 shadow-xs space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                      <Layers className="w-5 h-5 text-[#007979]" />
+                    <h3 className="text-sm sm:text-base font-bold text-gray-900 flex items-center gap-2">
+                      <Layers className="w-4.5 h-4.5 text-[#007979]" />
                       Campaigns by Category
                     </h3>
                     <span className="text-xs text-gray-500 font-semibold">
-                      {campaigns.length} Total
+                      {campaigns.length} Initiatives
                     </span>
                   </div>
-                  <div className="space-y-3">
+                  <div className="space-y-2.5">
                     {Object.entries(stats?.categoryDistribution || {}).map(([category, count]) => {
                       const pct = Math.round((count / (campaigns.length || 1)) * 100);
                       return (
@@ -850,17 +953,17 @@ export default function AdminDashboardPage() {
                 </Card>
 
                 {/* Department Distribution */}
-                <Card className="p-6 border border-gray-200 shadow-xs space-y-4">
+                <Card className="p-5 border border-gray-200 shadow-xs space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                      <Building2 className="w-5 h-5 text-[#E37434]" />
-                      Campaigns by Academic Department
+                    <h3 className="text-sm sm:text-base font-bold text-gray-900 flex items-center gap-2">
+                      <Building2 className="w-4.5 h-4.5 text-[#E37434]" />
+                      Campaigns by Department
                     </h3>
                     <span className="text-xs text-gray-500 font-semibold">
-                      Campus Origin
+                      Academic Origin
                     </span>
                   </div>
-                  <div className="space-y-3">
+                  <div className="space-y-2.5">
                     {Object.entries(stats?.departmentDistribution || {}).map(([dept, count]) => {
                       const pct = Math.round((count / (campaigns.length || 1)) * 100);
                       return (
@@ -885,23 +988,23 @@ export default function AdminDashboardPage() {
               </div>
 
               {/* Recent Platform Activity Audit Feed */}
-              <Card className="p-6 border border-gray-200 shadow-xs space-y-4">
+              <Card className="p-5 border border-gray-200 shadow-xs space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Activity className="w-5 h-5 text-[#007979]" />
-                    <h3 className="text-base font-bold text-gray-900">
+                    <Activity className="w-4.5 h-4.5 text-[#007979]" />
+                    <h3 className="text-sm sm:text-base font-bold text-gray-900">
                       Recent Administrative & Campus Activities
                     </h3>
                   </div>
-                  <span className="text-xs text-gray-400">Live Audit Trail</span>
+                  <span className="text-xs text-gray-400">Live Audit Log</span>
                 </div>
 
                 <div className="divide-y divide-gray-100">
                   {(stats?.recentActivity || []).map((act) => (
-                    <div key={act.id} className="py-3 flex items-center justify-between gap-4">
+                    <div key={act.id} className="py-2.5 flex items-center justify-between gap-4">
                       <div className="flex items-center gap-3 min-w-0">
                         <div
-                          className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                          className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
                             act.type === 'report'
                               ? 'bg-red-50 text-red-600'
                               : act.type === 'expense'
@@ -910,25 +1013,25 @@ export default function AdminDashboardPage() {
                           }`}
                         >
                           {act.type === 'report' ? (
-                            <ShieldAlert className="w-4 h-4" />
+                            <ShieldAlert className="w-3.5 h-3.5" />
                           ) : act.type === 'expense' ? (
-                            <Receipt className="w-4 h-4" />
+                            <Receipt className="w-3.5 h-3.5" />
                           ) : (
-                            <Clock className="w-4 h-4" />
+                            <Clock className="w-3.5 h-3.5" />
                           )}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-gray-900 truncate">
+                          <p className="text-xs sm:text-sm font-semibold text-gray-900 truncate">
                             {act.title}
                           </p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-[11px] text-gray-500">
                             By <span className="font-medium text-gray-700">{act.actor}</span> • {act.time}
                           </p>
                         </div>
                       </div>
 
                       <span
-                        className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider shrink-0 ${
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shrink-0 ${
                           act.status === 'verified' || act.status === 'resolved'
                             ? 'bg-emerald-100 text-emerald-800'
                             : act.status === 'pending'
@@ -949,14 +1052,14 @@ export default function AdminDashboardPage() {
           {/* MODULE 2: VERIFICATION QUEUE */}
           {/* ========================================================================= */}
           {activeTab === 'queue' && (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {/* Status Sub-filter Pills */}
-              <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-gray-200 shadow-xs">
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-gray-200 shadow-xs">
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setStatusFilter('pending')}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       statusFilter === 'pending'
                         ? 'bg-amber-500 text-white shadow-xs'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -967,7 +1070,7 @@ export default function AdminDashboardPage() {
                   <button
                     type="button"
                     onClick={() => setStatusFilter('approved')}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       statusFilter === 'approved'
                         ? 'bg-emerald-600 text-white shadow-xs'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -978,7 +1081,7 @@ export default function AdminDashboardPage() {
                   <button
                     type="button"
                     onClick={() => setStatusFilter('rejected')}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       statusFilter === 'rejected'
                         ? 'bg-red-600 text-white shadow-xs'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -989,7 +1092,7 @@ export default function AdminDashboardPage() {
                   <button
                     type="button"
                     onClick={() => setStatusFilter('all')}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       statusFilter === 'all'
                         ? 'bg-[#007979] text-white shadow-xs'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -1000,12 +1103,12 @@ export default function AdminDashboardPage() {
                 </div>
 
                 <div className="text-xs text-gray-500 font-medium">
-                  Showing <span className="font-bold text-gray-900">{filteredCampaigns.length}</span> campaigns
+                  Showing <strong className="text-gray-900">{filteredCampaigns.length}</strong> campaigns
                 </div>
               </div>
 
               {/* Search & Category Filter */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-white p-4 rounded-2xl border border-gray-200 shadow-xs">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-white p-3.5 rounded-2xl border border-gray-200 shadow-xs">
                 <div className="md:col-span-1">
                   <SearchBar
                     value={searchQuery}
@@ -1018,7 +1121,7 @@ export default function AdminDashboardPage() {
                   <select
                     value={selectedCategory}
                     onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#24B1B1]"
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#24B1B1]"
                   >
                     <option value="All">All Categories</option>
                     {CAMPAIGN_CATEGORIES.map((cat) => (
@@ -1033,7 +1136,7 @@ export default function AdminDashboardPage() {
                   <select
                     value={selectedDepartment}
                     onChange={(e) => setSelectedDepartment(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#24B1B1]"
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#24B1B1]"
                   >
                     <option value="All">All Departments</option>
                     {DEPARTMENTS.map((dept) => (
@@ -1067,12 +1170,12 @@ export default function AdminDashboardPage() {
                     return (
                       <Card
                         key={camp.id}
-                        className="p-5 hover:shadow-md transition-shadow border border-gray-200"
+                        className="p-4 sm:p-5 hover:shadow-md transition-shadow border border-gray-200"
                       >
                         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                           {/* Left: Thumbnail & Core Info */}
-                          <div className="flex items-start gap-4 flex-1 min-w-0">
-                            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden bg-gray-100 shrink-0 border border-gray-200">
+                          <div className="flex items-start gap-3.5 flex-1 min-w-0">
+                            <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-gray-100 shrink-0 border border-gray-200">
                               <img
                                 src={camp.image || 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=300'}
                                 alt={camp.title}
@@ -1080,13 +1183,13 @@ export default function AdminDashboardPage() {
                               />
                             </div>
 
-                            <div className="space-y-1.5 min-w-0 flex-1">
+                            <div className="space-y-1 min-w-0 flex-1">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-[#007979]/10 text-[#007979]">
+                                <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-[#007979]/10 text-[#007979]">
                                   {camp.category || 'Education'}
                                 </span>
                                 <span
-                                  className={`px-2.5 py-0.5 rounded-lg text-xs font-bold uppercase tracking-wider ${
+                                  className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
                                     status === 'approved'
                                       ? 'bg-emerald-100 text-emerald-800'
                                       : status === 'rejected'
@@ -1101,25 +1204,25 @@ export default function AdminDashboardPage() {
                                     : '⏳ Pending Review'}
                                 </span>
                                 {docs.length > 0 && (
-                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">
-                                    <FileText className="w-3.5 h-3.5" />
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">
+                                    <FileText className="w-3 h-3" />
                                     {docs.length} Doc{docs.length > 1 ? 's' : ''}
                                   </span>
                                 )}
                               </div>
 
-                              <h3 className="text-base sm:text-lg font-bold text-gray-900 leading-snug truncate">
+                              <h3 className="text-base font-bold text-gray-900 leading-snug truncate">
                                 {camp.title}
                               </h3>
 
-                              <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600">
+                              <div className="flex flex-wrap items-center gap-2.5 text-xs text-gray-600">
                                 <span className="inline-flex items-center gap-1 font-semibold text-gray-900">
-                                  <User className="w-3.5 h-3.5 text-[#007979]" />
+                                  <User className="w-3 h-3 text-[#007979]" />
                                   {camp.creator_name} ({camp.creator_user_type || 'Student'})
                                 </span>
                                 <span>•</span>
                                 <span className="inline-flex items-center gap-1 text-gray-600">
-                                  <Building2 className="w-3.5 h-3.5 text-gray-400" />
+                                  <Building2 className="w-3 h-3 text-gray-400" />
                                   {camp.creator_department || camp.department}
                                 </span>
                                 <span>•</span>
@@ -1128,7 +1231,7 @@ export default function AdminDashboardPage() {
                                 </span>
                                 <span>•</span>
                                 <span className="text-gray-400">
-                                  Submitted: {formatDate(camp.created_at)}
+                                  {formatDate(camp.created_at)}
                                 </span>
                               </div>
 
@@ -1142,7 +1245,7 @@ export default function AdminDashboardPage() {
                           </div>
 
                           {/* Right: Actions */}
-                          <div className="flex items-center gap-2.5 shrink-0 self-end lg:self-center">
+                          <div className="flex items-center gap-2 shrink-0 self-end lg:self-center">
                             <Button
                               variant="primary"
                               size="sm"
@@ -1158,17 +1261,17 @@ export default function AdminDashboardPage() {
                                   type="button"
                                   title="Quick Approve"
                                   onClick={() => handleApproveCampaign(camp.id, 'Quick approval by university administrator.')}
-                                  className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 flex items-center justify-center transition-colors cursor-pointer"
+                                  className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 flex items-center justify-center transition-colors cursor-pointer"
                                 >
-                                  <CheckCircle2 className="w-5 h-5" />
+                                  <CheckCircle2 className="w-4.5 h-4.5" />
                                 </button>
                                 <button
                                   type="button"
                                   title="Reject"
                                   onClick={() => handleOpenReview(camp)}
-                                  className="w-9 h-9 rounded-xl bg-red-50 text-red-700 hover:bg-red-100 flex items-center justify-center transition-colors cursor-pointer"
+                                  className="w-8 h-8 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 flex items-center justify-center transition-colors cursor-pointer"
                                 >
-                                  <XCircle className="w-5 h-5" />
+                                  <XCircle className="w-4.5 h-4.5" />
                                 </button>
                               </>
                             )}
@@ -1177,7 +1280,7 @@ export default function AdminDashboardPage() {
                               type="button"
                               title="Remove Campaign from Platform"
                               onClick={() => handleDeleteCampaign(camp.id, camp.title)}
-                              className="w-9 h-9 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center transition-colors cursor-pointer"
+                              className="w-8 h-8 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center transition-colors cursor-pointer"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -1195,14 +1298,14 @@ export default function AdminDashboardPage() {
           {/* MODULE 3: FRAUD & MODERATION REPORTS */}
           {/* ========================================================================= */}
           {activeTab === 'reports' && (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {/* Sub-filters for Reports */}
-              <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-gray-200 shadow-xs">
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-gray-200 shadow-xs">
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
                     type="button"
                     onClick={() => setReportStatusFilter('pending')}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       reportStatusFilter === 'pending'
                         ? 'bg-red-600 text-white shadow-xs'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -1213,7 +1316,7 @@ export default function AdminDashboardPage() {
                   <button
                     type="button"
                     onClick={() => setReportStatusFilter('resolved')}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       reportStatusFilter === 'resolved'
                         ? 'bg-emerald-600 text-white shadow-xs'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -1224,7 +1327,7 @@ export default function AdminDashboardPage() {
                   <button
                     type="button"
                     onClick={() => setReportStatusFilter('dismissed')}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       reportStatusFilter === 'dismissed'
                         ? 'bg-gray-700 text-white shadow-xs'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -1235,7 +1338,7 @@ export default function AdminDashboardPage() {
                   <button
                     type="button"
                     onClick={() => setReportStatusFilter('all')}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       reportStatusFilter === 'all'
                         ? 'bg-[#007979] text-white shadow-xs'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -1245,11 +1348,11 @@ export default function AdminDashboardPage() {
                   </button>
                 </div>
 
-                <div className="w-full sm:w-64">
+                <div className="w-full sm:w-60">
                   <SearchBar
                     value={reportSearchQuery}
                     onChange={setReportSearchQuery}
-                    placeholder="Search reports or reason..."
+                    placeholder="Search reports..."
                   />
                 </div>
               </div>
@@ -1263,25 +1366,25 @@ export default function AdminDashboardPage() {
                   onAction={() => setReportStatusFilter('all')}
                 />
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {filteredReports.map((rep) => {
                     const isPending = (rep.status || 'pending') === 'pending';
                     return (
                       <Card
                         key={rep.id}
-                        className={`p-6 border ${
+                        className={`p-5 border ${
                           isPending ? 'border-red-200 bg-red-50/20' : 'border-gray-200'
-                        } space-y-4 shadow-xs`}
+                        } space-y-3.5 shadow-xs`}
                       >
                         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                           <div className="space-y-2 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-red-100 text-red-800 flex items-center gap-1">
-                                <Flag className="w-3.5 h-3.5" />
+                              <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-red-100 text-red-800 flex items-center gap-1">
+                                <Flag className="w-3 h-3" />
                                 {rep.reason}
                               </span>
                               <span
-                                className={`px-2 py-0.5 rounded-full text-[11px] font-bold uppercase ${
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                                   rep.status === 'resolved'
                                     ? 'bg-emerald-100 text-emerald-800'
                                     : rep.status === 'dismissed'
@@ -1292,7 +1395,7 @@ export default function AdminDashboardPage() {
                                 {rep.status || 'pending'}
                               </span>
                               <span className="text-xs text-gray-400">
-                                Logged: {formatDate(rep.created_at)}
+                                {formatDate(rep.created_at)}
                               </span>
                             </div>
 
@@ -1300,32 +1403,32 @@ export default function AdminDashboardPage() {
                               Target Campaign: <span className="text-[#007979]">{rep.campaign_title || `Campaign #${rep.campaign_id}`}</span>
                             </h4>
 
-                            <div className="p-3.5 rounded-xl bg-white border border-gray-200 text-sm text-gray-800 leading-relaxed shadow-2xs">
-                              <p className="font-semibold text-xs text-gray-500 uppercase tracking-wider mb-1">
+                            <div className="p-3 rounded-xl bg-white border border-gray-200 text-xs sm:text-sm text-gray-800 leading-relaxed shadow-2xs">
+                              <p className="font-semibold text-[11px] text-gray-500 uppercase tracking-wider mb-0.5">
                                 Complaint Details:
                               </p>
                               {rep.description}
                             </div>
 
-                            <div className="flex flex-wrap items-center gap-4 text-xs text-gray-600 pt-1">
+                            <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600 pt-0.5">
                               <span>
                                 <strong className="text-gray-900">Reporter:</strong> {rep.reporter_name || 'Anonymous'}{' '}
                                 {rep.reporter_email && `(${rep.reporter_email})`}
                               </span>
                               <span>•</span>
                               <span>
-                                <strong className="text-gray-900">Campaign Creator:</strong> {rep.creator_name || 'Campus Creator'}
+                                <strong className="text-gray-900">Creator:</strong> {rep.creator_name || 'Campus Creator'}
                               </span>
                               {rep.creator_status === 'deactivated' && (
-                                <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700 font-bold">
-                                  Creator Deactivated
+                                <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700 font-bold text-[10px]">
+                                  Creator Suspended
                                 </span>
                               )}
                             </div>
 
                             {rep.admin_notes && (
-                              <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-900">
-                                <strong className="font-bold">Investigation Findings / Action: </strong>
+                              <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-900">
+                                <strong className="font-bold">Investigation Findings: </strong>
                                 {rep.admin_notes}
                               </div>
                             )}
@@ -1359,7 +1462,7 @@ export default function AdminDashboardPage() {
                             <button
                               type="button"
                               onClick={() => handleTakeDownFromReport(rep.campaign_id, rep.campaign_title, rep.id)}
-                              className="px-3 py-1.5 rounded-xl text-xs font-bold text-red-700 bg-red-100 hover:bg-red-200 border border-red-300 transition-colors flex items-center justify-center gap-1.5 cursor-pointer w-full"
+                              className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-red-700 bg-red-100 hover:bg-red-200 border border-red-300 transition-colors flex items-center justify-center gap-1.5 cursor-pointer w-full"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                               <span>Take Down Campaign</span>
@@ -1369,7 +1472,7 @@ export default function AdminDashboardPage() {
                               <button
                                 type="button"
                                 onClick={() => handleDeactivateCreatorFromReport(rep.creator_id, rep.creator_name, rep.id)}
-                                className="px-3 py-1.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-100 hover:bg-red-50 hover:text-red-700 border border-gray-300 transition-colors flex items-center justify-center gap-1.5 cursor-pointer w-full"
+                                className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-100 hover:bg-red-50 hover:text-red-700 border border-gray-300 transition-colors flex items-center justify-center gap-1.5 cursor-pointer w-full"
                               >
                                 <UserX className="w-3.5 h-3.5" />
                                 <span>Suspend Creator</span>
@@ -1389,9 +1492,9 @@ export default function AdminDashboardPage() {
           {/* MODULE 4: USER ACCOUNTS (DEACTIVATE / REACTIVATE) */}
           {/* ========================================================================= */}
           {activeTab === 'users' && (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {/* Search & Filters for Users */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-white p-4 rounded-2xl border border-gray-200 shadow-xs">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-white p-3.5 rounded-2xl border border-gray-200 shadow-xs">
                 <div className="md:col-span-1">
                   <SearchBar
                     value={userSearchQuery}
@@ -1404,7 +1507,7 @@ export default function AdminDashboardPage() {
                   <button
                     type="button"
                     onClick={() => setUserStatusFilter('all')}
-                    className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       userStatusFilter === 'all'
                         ? 'bg-[#007979] text-white'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -1415,7 +1518,7 @@ export default function AdminDashboardPage() {
                   <button
                     type="button"
                     onClick={() => setUserStatusFilter('active')}
-                    className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       userStatusFilter === 'active'
                         ? 'bg-emerald-600 text-white'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -1426,7 +1529,7 @@ export default function AdminDashboardPage() {
                   <button
                     type="button"
                     onClick={() => setUserStatusFilter('deactivated')}
-                    className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       userStatusFilter === 'deactivated'
                         ? 'bg-red-600 text-white'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -1440,7 +1543,7 @@ export default function AdminDashboardPage() {
                   <select
                     value={userDeptFilter}
                     onChange={(e) => setUserDeptFilter(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl border border-gray-200 bg-gray-50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#24B1B1]"
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#24B1B1]"
                   >
                     <option value="All">All Departments</option>
                     {DEPARTMENTS.map((dept) => (
@@ -1453,30 +1556,30 @@ export default function AdminDashboardPage() {
               </div>
 
               {/* Users Table Card */}
-              <Card className="p-6 border border-gray-200 shadow-xs space-y-4">
+              <Card className="p-5 border border-gray-200 shadow-xs space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-base font-bold text-gray-900">
                       Campus User Directory & Access Control
                     </h3>
                     <p className="text-xs text-gray-500">
-                      Manage campus accounts, restrict abusive campaign creators, and maintain student safety.
+                      Deactivate disruptive users or reinstate restored campus members.
                     </p>
                   </div>
                   <span className="text-xs font-bold text-gray-500">
-                    {filteredUsers.length} account{filteredUsers.length > 1 ? 's' : ''} shown
+                    {filteredUsers.length} account{filteredUsers.length > 1 ? 's' : ''}
                   </span>
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
+                  <table className="w-full text-left text-xs sm:text-sm">
                     <thead>
-                      <tr className="border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                        <th className="pb-3">User & Email</th>
-                        <th className="pb-3">Role & Dept</th>
-                        <th className="pb-3">University ID</th>
-                        <th className="pb-3">Status</th>
-                        <th className="pb-3 text-right">Account Action</th>
+                      <tr className="border-b border-gray-200 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                        <th className="pb-2.5">User & Email</th>
+                        <th className="pb-2.5">Role & Dept</th>
+                        <th className="pb-2.5">University ID</th>
+                        <th className="pb-2.5">Status</th>
+                        <th className="pb-2.5 text-right">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -1486,22 +1589,22 @@ export default function AdminDashboardPage() {
 
                         return (
                           <tr key={u.id} className="hover:bg-gray-50/80 transition-colors">
-                            <td className="py-3.5 pr-4">
+                            <td className="py-3 pr-4">
                               <p className="font-bold text-gray-900">{u.name}</p>
                               <p className="text-xs text-gray-500">{u.email}</p>
                             </td>
-                            <td className="py-3.5 pr-4">
+                            <td className="py-3 pr-4">
                               <span className="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-[#007979]/10 text-[#007979]">
                                 {u.user_type || u.userType || 'Student'}
                               </span>
                               <p className="text-xs text-gray-600 mt-0.5">{u.department || 'General'}</p>
                             </td>
-                            <td className="py-3.5 pr-4 font-mono text-xs text-gray-600">
+                            <td className="py-3 pr-4 font-mono text-xs text-gray-600">
                               {u.university_id || 'STU-2026'}
                             </td>
-                            <td className="py-3.5 pr-4">
+                            <td className="py-3 pr-4">
                               <span
-                                className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase ${
+                                className={`px-2 py-0.5 rounded-full text-[11px] font-bold uppercase ${
                                   isDeactivated
                                     ? 'bg-red-100 text-red-800'
                                     : 'bg-emerald-100 text-emerald-800'
@@ -1510,7 +1613,7 @@ export default function AdminDashboardPage() {
                                 {isDeactivated ? '✕ Suspended' : '✓ Active'}
                               </span>
                             </td>
-                            <td className="py-3.5 text-right">
+                            <td className="py-3 text-right">
                               {isSelf ? (
                                 <span className="text-xs text-gray-400 italic">Self Account</span>
                               ) : isDeactivated ? (
@@ -1519,9 +1622,9 @@ export default function AdminDashboardPage() {
                                   size="sm"
                                   onClick={() => handleToggleUserStatus(u.id, u.name, u.status)}
                                   icon={UserCheck}
-                                  className="text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+                                  className="text-emerald-700 border-emerald-300 hover:bg-emerald-50 text-xs"
                                 >
-                                  Reactivate Access
+                                  Reactivate
                                 </Button>
                               ) : (
                                 <Button
@@ -1529,9 +1632,9 @@ export default function AdminDashboardPage() {
                                   size="sm"
                                   onClick={() => handleToggleUserStatus(u.id, u.name, u.status)}
                                   icon={UserX}
-                                  className="text-red-600 border-red-200 hover:bg-red-50"
+                                  className="text-red-600 border-red-200 hover:bg-red-50 text-xs"
                                 >
-                                  Deactivate Account
+                                  Deactivate
                                 </Button>
                               )}
                             </td>
@@ -1549,14 +1652,14 @@ export default function AdminDashboardPage() {
           {/* MODULE 5: EXPENSE RECEIPTS AUDIT */}
           {/* ========================================================================= */}
           {activeTab === 'expenses' && (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {/* Filter Pills */}
-              <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-gray-200 shadow-xs">
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-gray-200 shadow-xs">
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
                     type="button"
                     onClick={() => setExpenseStatusFilter('all')}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       expenseStatusFilter === 'all'
                         ? 'bg-[#007979] text-white shadow-xs'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -1567,7 +1670,7 @@ export default function AdminDashboardPage() {
                   <button
                     type="button"
                     onClick={() => setExpenseStatusFilter('pending')}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       expenseStatusFilter === 'pending'
                         ? 'bg-amber-500 text-white shadow-xs'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -1578,7 +1681,7 @@ export default function AdminDashboardPage() {
                   <button
                     type="button"
                     onClick={() => setExpenseStatusFilter('verified')}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       expenseStatusFilter === 'verified'
                         ? 'bg-emerald-600 text-white shadow-xs'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -1589,7 +1692,7 @@ export default function AdminDashboardPage() {
                 </div>
 
                 <div className="text-xs text-gray-500 font-medium">
-                  Showing <span className="font-bold text-gray-900">{filteredExpenses.length}</span> receipts
+                  Showing <strong className="text-gray-900">{filteredExpenses.length}</strong> receipts
                 </div>
               </div>
 
@@ -1608,12 +1711,11 @@ export default function AdminDashboardPage() {
                     return (
                       <Card
                         key={exp.id}
-                        className="p-5 border border-gray-200 hover:shadow-md transition-shadow"
+                        className="p-4 sm:p-5 border border-gray-200 hover:shadow-md transition-shadow"
                       >
                         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                          <div className="flex items-start gap-4 flex-1 min-w-0">
-                            {/* Receipt Thumbnail */}
-                            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-gray-100 shrink-0 border border-gray-200">
+                          <div className="flex items-start gap-3.5 flex-1 min-w-0">
+                            <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 shrink-0 border border-gray-200">
                               {exp.receipt_url ? (
                                 <img
                                   src={exp.receipt_url}
@@ -1622,18 +1724,18 @@ export default function AdminDashboardPage() {
                                 />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                  <Receipt className="w-6 h-6" />
+                                  <Receipt className="w-5 h-5" />
                                 </div>
                               )}
                             </div>
 
                             <div className="space-y-1 min-w-0 flex-1">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-[#007979]/10 text-[#007979]">
+                                <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-[#007979]/10 text-[#007979]">
                                   {exp.category || 'Expenditure'}
                                 </span>
                                 <span
-                                  className={`px-2 py-0.5 rounded-full text-[11px] font-bold uppercase ${
+                                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                                     status === 'verified'
                                       ? 'bg-emerald-100 text-emerald-800'
                                       : status === 'rejected'
@@ -1649,7 +1751,7 @@ export default function AdminDashboardPage() {
                                 </span>
                               </div>
 
-                              <h4 className="text-base font-bold text-gray-900 truncate">
+                              <h4 className="text-sm sm:text-base font-bold text-gray-900 truncate">
                                 {exp.title}
                               </h4>
 
@@ -1658,11 +1760,11 @@ export default function AdminDashboardPage() {
                               </p>
 
                               <div className="flex items-center gap-3 text-xs text-gray-500 pt-0.5">
-                                <span className="font-bold text-[#E37434] text-sm">
+                                <span className="font-bold text-[#E37434]">
                                   {formatCurrency(exp.amount)}
                                 </span>
                                 <span>•</span>
-                                <span>Uploaded: {formatDate(exp.created_at)}</span>
+                                <span>{formatDate(exp.created_at)}</span>
                               </div>
 
                               {exp.admin_notes && (
@@ -1675,16 +1777,16 @@ export default function AdminDashboardPage() {
                           </div>
 
                           {/* Actions */}
-                          <div className="flex items-center gap-2.5 shrink-0 self-end lg:self-center">
+                          <div className="flex items-center gap-2 shrink-0 self-end lg:self-center">
                             {exp.receipt_url && (
                               <a
                                 href={exp.receipt_url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-[#007979] bg-[#007979]/10 hover:bg-[#007979]/20 transition-colors"
+                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold text-[#007979] bg-[#007979]/10 hover:bg-[#007979]/20 transition-colors"
                               >
                                 <ExternalLink className="w-3.5 h-3.5" />
-                                View Invoice
+                                Invoice
                               </a>
                             )}
 
@@ -1702,7 +1804,7 @@ export default function AdminDashboardPage() {
                                 icon={CheckCircle2}
                                 className="!bg-emerald-600 hover:!bg-emerald-700"
                               >
-                                Mark Verified
+                                Verify
                               </Button>
                             )}
 
@@ -1738,58 +1840,58 @@ export default function AdminDashboardPage() {
           {/* MODULE 6: CAMPAIGN DIRECTORY & PERMANENT REMOVAL */}
           {/* ========================================================================= */}
           {activeTab === 'campaigns' && (
-            <div className="space-y-6">
-              <Card className="p-6 border border-gray-200 shadow-xs space-y-4">
+            <div className="space-y-4">
+              <Card className="p-5 border border-gray-200 shadow-xs space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <h3 className="text-base font-bold text-gray-900">
                       Master Campaign Directory & Permanent Removal
                     </h3>
                     <p className="text-xs text-gray-500">
-                      Complete catalog of all approved, pending, and rejected campaigns with direct takedown controls.
+                      Manage all approved, pending, and rejected campaigns with direct takedown capability.
                     </p>
                   </div>
-                  <div className="w-full sm:w-64">
+                  <div className="w-full sm:w-60">
                     <SearchBar
                       value={campaignDirectorySearch}
                       onChange={setCampaignDirectorySearch}
-                      placeholder="Search any campaign..."
+                      placeholder="Search campaigns..."
                     />
                   </div>
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
+                  <table className="w-full text-left text-xs sm:text-sm">
                     <thead>
-                      <tr className="border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                        <th className="pb-3">Title & Category</th>
-                        <th className="pb-3">Creator</th>
-                        <th className="pb-3">Goal</th>
-                        <th className="pb-3">Raised</th>
-                        <th className="pb-3">Status</th>
-                        <th className="pb-3 text-right">Moderation & Removal</th>
+                      <tr className="border-b border-gray-200 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                        <th className="pb-2.5">Title & Category</th>
+                        <th className="pb-2.5">Creator</th>
+                        <th className="pb-2.5">Goal</th>
+                        <th className="pb-2.5">Raised</th>
+                        <th className="pb-2.5">Status</th>
+                        <th className="pb-2.5 text-right">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {filteredDirectoryCampaigns.map((camp) => (
                         <tr key={camp.id} className="hover:bg-gray-50/80 transition-colors">
-                          <td className="py-3.5 pr-4">
+                          <td className="py-3 pr-4">
                             <p className="font-bold text-gray-900 line-clamp-1">{camp.title}</p>
                             <p className="text-xs text-[#007979]">{camp.category}</p>
                           </td>
-                          <td className="py-3.5 pr-4">
+                          <td className="py-3 pr-4">
                             <p className="font-semibold text-gray-800">{camp.creator_name}</p>
                             <p className="text-xs text-gray-500">{camp.creator_department}</p>
                           </td>
-                          <td className="py-3.5 pr-4 font-semibold text-gray-700">
+                          <td className="py-3 pr-4 font-semibold text-gray-700">
                             {formatCurrency(camp.goal_amount)}
                           </td>
-                          <td className="py-3.5 pr-4 font-bold text-[#E37434]">
+                          <td className="py-3 pr-4 font-bold text-[#E37434]">
                             {formatCurrency(camp.amount_raised || 0)}
                           </td>
-                          <td className="py-3.5 pr-4">
+                          <td className="py-3 pr-4">
                             <span
-                              className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase ${
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                                 camp.status === 'approved'
                                   ? 'bg-emerald-100 text-emerald-800'
                                   : camp.status === 'rejected'
@@ -1800,7 +1902,7 @@ export default function AdminDashboardPage() {
                               {camp.status || 'pending'}
                             </span>
                           </td>
-                          <td className="py-3.5 text-right space-x-2">
+                          <td className="py-3 text-right space-x-2">
                             <Button
                               variant="ghost"
                               size="sm"
