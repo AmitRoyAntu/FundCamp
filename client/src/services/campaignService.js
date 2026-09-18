@@ -26,12 +26,24 @@ const formatCampaign = (c) => {
     }
   }
 
+  let parsedDocs = [];
+  if (Array.isArray(c.documents)) {
+    parsedDocs = c.documents;
+  } else if (typeof c.documents === 'string') {
+    try {
+      parsedDocs = JSON.parse(c.documents);
+    } catch (e) {
+      parsedDocs = [];
+    }
+  }
+
   return {
     id: String(c.id),
     title: c.title,
     description: c.description,
     category,
     tags: parsedTags,
+    documents: parsedDocs,
     goalAmount: Number(c.goal_amount || c.goalAmount || 5000),
     amountRaised: Number(c.amount_raised || c.amountRaised || 0),
     creator: {
@@ -141,6 +153,7 @@ export const campaignService = {
       department: campaignData.department || user?.department,
       image: campaignData.image,
       tags: campaignData.tags || [],
+      documents: campaignData.documents || [],
       goalAmount: Number(campaignData.goalAmount)
     };
 
@@ -153,6 +166,7 @@ export const campaignService = {
       department: created.department || campaignData.department || user?.department,
       image: created.image || campaignData.image,
       tags: created.tags || campaignData.tags || [],
+      documents: created.documents || campaignData.documents || [],
       creator_name: user?.fullName || user?.name || 'Anonymous Creator',
       creator_department: user?.department || 'Campus Department'
     });
@@ -245,6 +259,23 @@ export const campaignService = {
       reporterEmail,
     });
     return response.data.data;
+  },
+
+  // GET /api/campaigns/:id/expenses
+  async getCampaignExpenses(id) {
+    try {
+      const response = await apiClient.get(`/campaigns/${id}/expenses`);
+      return response.data.data || [];
+    } catch (err) {
+      console.warn('Failed to fetch expenses:', err);
+      return [];
+    }
+  },
+
+  // POST /api/campaigns/:id/expenses
+  async createCampaignExpense(id, data) {
+    const response = await apiClient.post(`/campaigns/${id}/expenses`, data);
+    return response.data;
   },
 };
 

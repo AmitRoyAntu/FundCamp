@@ -49,7 +49,7 @@ export const getCampaignById = async (req, res) => {
 
 export const createCampaign = async (req, res) => {
   try {
-    const { title, description, category, department, image, goalAmount, tags } = req.body;
+    const { title, description, category, department, image, goalAmount, tags, documents } = req.body;
     const creatorId = req.user.id;
 
     if (!title || !description || goalAmount === undefined || goalAmount === null) {
@@ -77,6 +77,7 @@ export const createCampaign = async (req, res) => {
       image,
       goalAmount: numericGoal,
       tags,
+      documents: Array.isArray(documents) ? documents : [],
       creatorId
     });
 

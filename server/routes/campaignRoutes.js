@@ -3,6 +3,7 @@ import { getAllCampaigns, getCampaignById, createCampaign, processDonation, repo
 import { getUpdatesByCampaign, createUpdate } from '../controllers/updateController.js';
 import { getCommentsByCampaign, createComment, deleteComment } from '../controllers/commentController.js';
 import { getDonationsByCampaign } from '../controllers/donationController.js';
+import { getExpensesByCampaign, createCampaignExpense } from '../controllers/expenseController.js';
 import { verifyToken, optionalVerifyToken } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -18,6 +19,10 @@ router.post('/campaigns/:id/report', optionalVerifyToken, reportCampaign);
 // Campaign Donations routes
 router.get('/campaigns/:id/donations', getDonationsByCampaign);
 router.post('/campaigns/:id/donate', optionalVerifyToken, processDonation);
+
+// Campaign Expenses Transparency routes
+router.get('/campaigns/:id/expenses', optionalVerifyToken, getExpensesByCampaign);
+router.post('/campaigns/:id/expenses', verifyToken, createCampaignExpense);
 
 // Campaign Updates routes
 router.get('/campaigns/:id/updates', getUpdatesByCampaign);

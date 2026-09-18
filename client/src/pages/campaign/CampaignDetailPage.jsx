@@ -8,6 +8,7 @@ import Card from '../../components/common/Card';
 import Loader from '../../components/common/Loader';
 import DonateModal from '../../components/campaign/DonateModal';
 import ReportCampaignModal from '../../components/campaign/ReportCampaignModal';
+import SubmitExpenseModal from '../../components/campaign/SubmitExpenseModal';
 import Input from '../../components/common/Input';
 import { formatCurrency, calculatePercentage, formatDate, daysLeft } from '../../utils/formatters';
 import toast from 'react-hot-toast';
@@ -41,6 +42,9 @@ import {
   Image as ImageIcon,
   Eye,
   FileCheck,
+  Receipt,
+  BadgeCheck,
+  X as XIcon,
 } from 'lucide-react';
 
 export default function CampaignDetailPage() {
@@ -52,15 +56,17 @@ export default function CampaignDetailPage() {
   const [updates, setUpdates] = useState([]);
   const [comments, setComments] = useState([]);
   const [donations, setDonations] = useState([]);
+  const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Tab State: 'campaign' | 'updates' | 'comments' | 'contributors'
+  // Tab State: 'campaign' | 'updates' | 'comments' | 'contributors' | 'expenses'
   const [activeTab, setActiveTab] = useState('campaign');
 
   // Modal State
   const [isDonateModalOpen, setIsDonateModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [previewModalImage, setPreviewModalImage] = useState(null);
 
   // Form states for Updates
@@ -84,16 +90,18 @@ export default function CampaignDetailPage() {
     const fetchDetailAndData = async () => {
       setLoading(true);
       try {
-        const [campData, updatesData, commentsData, donationsData] = await Promise.all([
+        const [campData, updatesData, commentsData, donationsData, expensesData] = await Promise.all([
           campaignService.getCampaignById(id),
           campaignService.getCampaignUpdates(id),
           campaignService.getCampaignComments(id),
           campaignService.getCampaignDonations(id),
+          campaignService.getCampaignExpenses(id).catch(() => []),
         ]);
         setCampaign(campData);
         setUpdates(updatesData || []);
         setComments(commentsData || []);
         setDonations(donationsData || []);
+        setExpenses(expensesData || []);
       } catch (err) {
         setError(err.message || 'Failed to load campaign details');
       } finally {
@@ -123,6 +131,10 @@ export default function CampaignDetailPage() {
       return;
     }
     setIsDonateModalOpen(true);
+  };
+
+  const handleExpenseSubmitted = (newExpense) => {
+    setExpenses((prev) => [newExpense, ...prev]);
   };
 
   const handleDonationSuccess = async ({ amount, donorName, paymentMethod }) => {
@@ -357,15 +369,17 @@ export default function CampaignDetailPage() {
           <Button variant="outline" size="sm" onClick={handleShare} icon={Share2}>
             Share Link
           </Button>
-          <button
-            type="button"
-            onClick={() => setIsReportModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors cursor-pointer"
-            title="Report fraud, fake documents, or university guideline violations"
-          >
-            <Flag className="w-3.5 h-3.5" />
-            <span>Report</span>
-          </button>
+          {!isCreator && (
+            <button
+              type="button"
+              onClick={() => setIsReportModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors cursor-pointer"
+              title="Report fraud, fake documents, or university guideline violations"
+            >
+              <Flag className="w-3.5 h-3.5" />
+              <span>Report</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -508,6 +522,27 @@ export default function CampaignDetailPage() {
                 >
                   {donations.length}
                 </span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('expenses')}
+                className={`pb-3.5 text-sm sm:text-base font-bold border-b-2 flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap ${
+                  activeTab === 'expenses'
+                    ? 'border-[#007979] text-[#007979]'
+                    : 'border-transparent text-[#6B7280] hover:text-[#1F2937]'
+                }`}
+              >
+                <Receipt className="w-4 h-4" />
+                <span>Expenses</span>
+                {expenses.length > 0 && (
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-xs font-bold transition-colors ${
+                      activeTab === 'expenses' ? 'bg-[#007979] text-white' : 'bg-gray-100 text-[#6B7280]'
+                    }`}
+                  >
+                    {expenses.length}
+                  </span>
+                )}
               </button>
             </div>
           </div>
@@ -1041,6 +1076,171 @@ export default function CampaignDetailPage() {
               )}
             </div>
           )}
+
+          {/* TAB 5: EXPENSES & FINANCIAL TRANSPARENCY */}
+          {activeTab === 'expenses' && (
+            <div className="space-y-5 animate-in fade-in duration-200">
+              {/* Header + Creator Submit Button */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-xl font-bold text-[#1F2937] flex items-center gap-2">
+                    <Receipt className="w-5 h-5 text-[#007979]" />
+                    Expenses & Financial Transparency
+                  </h3>
+                  <p className="text-xs text-[#6B7280] mt-0.5">
+                    All expenditures are submitted by the campaign creator and audited by University Administration.
+                  </p>
+                </div>
+                {isCreator && (
+                  <button
+                    type="button"
+                    onClick={() => setIsExpenseModalOpen(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#007979] text-white text-sm font-bold hover:bg-[#005f5f] transition-colors cursor-pointer shrink-0 shadow-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Log Expense Receipt
+                  </button>
+                )}
+              </div>
+
+              {/* Transparency Summary Bar */}
+              {expenses.length > 0 && (() => {
+                const verifiedExpenses = expenses.filter((e) => e.status === 'verified' || e.status === 'approved');
+                const totalVerifiedSpent = verifiedExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+                const totalSpent = expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+                const spendPercent = campaign?.goalAmount ? Math.min(Math.round((totalVerifiedSpent / campaign.goalAmount) * 100), 100) : 0;
+
+                return (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4 text-center">
+                      <p className="text-2xl font-extrabold text-[#007979]">{formatCurrency(totalVerifiedSpent)}</p>
+                      <p className="text-xs text-[#6B7280] font-medium mt-1">Verified Spent</p>
+                    </div>
+                    <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4 text-center">
+                      <p className="text-2xl font-extrabold text-amber-600">{formatCurrency(totalSpent - totalVerifiedSpent)}</p>
+                      <p className="text-xs text-[#6B7280] font-medium mt-1">Pending Audit</p>
+                    </div>
+                    <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4 text-center">
+                      <p className="text-2xl font-extrabold text-[#1F2937]">{spendPercent}%</p>
+                      <p className="text-xs text-[#6B7280] font-medium mt-1">of Goal Used</p>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Expense Receipts List */}
+              {expenses.length === 0 ? (
+                <div className="text-center py-16 bg-white border border-[#E5E7EB] rounded-2xl">
+                  <div className="w-14 h-14 rounded-2xl bg-gray-100 text-gray-400 flex items-center justify-center mx-auto mb-4">
+                    <Receipt className="w-7 h-7" />
+                  </div>
+                  <p className="text-base font-bold text-[#1F2937]">No expense receipts yet</p>
+                  <p className="text-sm text-[#6B7280] mt-1">
+                    {isCreator
+                      ? 'Log your first expense receipt to show backers how funds are being spent.'
+                      : 'The campaign creator has not submitted any expense receipts yet.'}
+                  </p>
+                  {isCreator && (
+                    <button
+                      type="button"
+                      onClick={() => setIsExpenseModalOpen(true)}
+                      className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#007979] text-white text-sm font-bold hover:bg-[#005f5f] transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Submit First Expense
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {expenses.map((expense, idx) => {
+                    const isVerified = expense.status === 'verified' || expense.status === 'approved';
+                    const isPending = !isVerified;
+
+                    return (
+                      <div
+                        key={expense.id || idx}
+                        className={`bg-white border rounded-2xl p-4 transition-colors ${
+                          isVerified ? 'border-emerald-200 bg-emerald-50/30' : 'border-[#E5E7EB]'
+                        }`}
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                          <div className="flex items-start gap-3 min-w-0">
+                            <div
+                              className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                                isVerified ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                              }`}
+                            >
+                              <Receipt className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-bold text-[#1F2937] text-sm">{expense.title}</p>
+                              <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] text-[#6B7280]">
+                                <span className="inline-flex items-center gap-1">
+                                  <Building2 className="w-3 h-3" />
+                                  {expense.vendor}
+                                </span>
+                                <span>•</span>
+                                <span className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 font-semibold">
+                                  {expense.category}
+                                </span>
+                                <span>•</span>
+                                <span>{formatDate(expense.created_at)}</span>
+                              </div>
+                              {expense.notes && (
+                                <p className="text-xs text-[#6B7280] mt-1.5 leading-relaxed italic">
+                                  {expense.notes}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col items-end gap-2 shrink-0">
+                            <span className="text-lg font-extrabold text-[#007979]">
+                              {formatCurrency(expense.amount)}
+                            </span>
+                            {isVerified ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                <CheckCircle2 className="w-3 h-3" />
+                                Verified by Administration
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                                <AlertCircle className="w-3 h-3" />
+                                Pending Audit
+                              </span>
+                            )}
+                            {expense.receipt_url && (
+                              <a
+                                href={expense.receipt_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-[#007979] hover:underline"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                View Receipt
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Audit Transparency Notice */}
+              <div className="flex items-start gap-3 p-4 rounded-2xl bg-[#007979]/5 border border-[#007979]/20 text-xs text-[#007979]">
+                <ShieldCheck className="w-5 h-5 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold mb-0.5">University Audit Guarantee</p>
+                  <p className="leading-relaxed opacity-90">
+                    All expense receipts are reviewed and verified by the University Campus Administration team. Only verified receipts count towards official disbursement records. Unverified entries are pending review.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right 1 Column: Sticky Funding Widget */}
@@ -1139,6 +1339,14 @@ export default function CampaignDetailPage() {
         campaign={campaign}
         isOpen={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}
+      />
+
+      {/* Expense Receipt Submission Modal (Creator Only) */}
+      <SubmitExpenseModal
+        campaign={campaign}
+        isOpen={isExpenseModalOpen}
+        onClose={() => setIsExpenseModalOpen(false)}
+        onExpenseSubmitted={handleExpenseSubmitted}
       />
 
       {/* Full-Screen Image Lightbox Modal */}

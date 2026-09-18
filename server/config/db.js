@@ -450,12 +450,28 @@ function handleInMemoryQuery(text, params) {
 
   if (queryStr.includes('insert into campaigns')) {
     let title, description, category, department, image, goal_amount, tags, creator_id, documents;
-    if (params.length >= 8) {
+    if (params.length >= 9) {
       [title, description, category, department, image, goal_amount, tags, creator_id, documents] = params;
+    } else if (params.length === 8) {
+      [title, description, category, department, image, goal_amount, tags, creator_id] = params;
+      documents = [];
     } else {
       [title, description, category, department, image, goal_amount, creator_id] = params;
       tags = [];
+      documents = [];
     }
+
+    let parsedDocs = [];
+    if (Array.isArray(documents)) {
+      parsedDocs = documents;
+    } else if (typeof documents === 'string') {
+      try {
+        parsedDocs = JSON.parse(documents);
+      } catch {
+        parsedDocs = [];
+      }
+    }
+
     const newCampaign = {
       id: inMemoryStore.campaigns.length + 1,
       title,
@@ -467,7 +483,7 @@ function handleInMemoryQuery(text, params) {
       amount_raised: 0,
       tags: Array.isArray(tags) ? tags : [],
       status: 'pending', // default for newly submitted campaigns
-      documents: Array.isArray(documents) ? documents : [],
+      documents: parsedDocs,
       admin_feedback: null,
       verified_at: null,
       creator_id: parseInt(creator_id, 10),
@@ -515,6 +531,26 @@ function handleInMemoryQuery(text, params) {
       return { rows: [item] };
     }
     return { rows: [] };
+  }
+
+  if (queryStr.includes('insert into expense_receipts')) {
+    const [campaign_id, title, amount, vendor, category, receipt_url, receipt_name, status] = params;
+    const newReceipt = {
+      id: (inMemoryStore.expense_receipts || []).length + 1,
+      campaign_id: parseInt(campaign_id, 10),
+      title,
+      amount: parseFloat(amount),
+      vendor: vendor || 'University Vendor',
+      category: category || 'Equipment',
+      receipt_url: receipt_url || null,
+      receipt_name: receipt_name || null,
+      status: status || 'pending',
+      admin_notes: null,
+      created_at: new Date().toISOString()
+    };
+    if (!inMemoryStore.expense_receipts) inMemoryStore.expense_receipts = [];
+    inMemoryStore.expense_receipts.push(newReceipt);
+    return { rows: [newReceipt] };
   }
 
   // CAMPAIGN REPORTS QUERIES
