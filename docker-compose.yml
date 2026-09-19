@@ -41,6 +41,17 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       JWT_SECRET: ${JWT_SECRET}
       CLIENT_URL: ${CLIENT_URL}
+      # AI assistant — Compose does not inject .env into containers, so every
+      # var the server reads must be listed explicitly here.
+      AI_BASE_URL: ${AI_BASE_URL}
+      AI_MODEL: ${AI_MODEL}
+      AI_API_KEY: ${AI_API_KEY}
+      AI_ENABLED: ${AI_ENABLED}
+      AI_MAX_TOKENS: ${AI_MAX_TOKENS}
+      AI_TIMEOUT_MS: ${AI_TIMEOUT_MS}
+      AI_ANON_HOURLY_LIMIT: ${AI_ANON_HOURLY_LIMIT}
+      AI_USER_HOURLY_LIMIT: ${AI_USER_HOURLY_LIMIT}
+      AI_ANON_DAILY_LIMIT: ${AI_ANON_DAILY_LIMIT}
     networks:
       - fundcamp_network
     healthcheck:
