@@ -9,18 +9,11 @@ import authRoutes from './routes/authRoutes.js';
 import profileRoutes from './routes/profileRoutes.js';
 import campaignRoutes from './routes/campaignRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
-import aiRoutes from './routes/aiRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-
-// nginx (nginx/nginx.conf) forwards X-Real-IP / X-Forwarded-For on /api, but Express
-// ignores them unless this is set. Without it req.ip is nginx's own container IP for
-// every visitor, which would collapse all anonymous AI traffic into a single
-// rate-limit bucket.
-app.set('trust proxy', 1);
 
 app.use(cors({
   origin: true,
@@ -36,7 +29,6 @@ app.use('/api', authRoutes);
 app.use('/api', profileRoutes);
 app.use('/api', campaignRoutes);
 app.use('/api', adminRoutes);
-app.use('/api', aiRoutes);
 
 // Serve client static build files if present
 const clientDistPath = path.join(__dirname, '../client/dist');
