@@ -23,13 +23,17 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor for unified error message handling
+// Response interceptor for unified error message handling.
+//
+// Controllers put a short label in `message` ("Login failed", "Assistant") and the
+// human-readable text in `error` ("Invalid credentials"). Prefer `error`, or every
+// failure surfaces its label instead of something a user can act on.
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     const message =
-      error.response?.data?.message ||
       error.response?.data?.error ||
+      error.response?.data?.message ||
       error.message ||
       'An unexpected error occurred';
     return Promise.reject(new Error(message));
