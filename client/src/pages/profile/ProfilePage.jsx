@@ -50,12 +50,13 @@ export default function ProfilePage() {
   const { currentUser, updateProfile } = useAuth();
   const navigate = useNavigate();
 
-  // Active Tab: 'analytics' | 'contributions' | 'campaigns'
+  // Active Tab: 'analytics' | 'contributions' | 'campaigns' | 'saved'
   const [activeTab, setActiveTab] = useState('analytics');
 
   const [analytics, setAnalytics] = useState(null);
   const [contributionsData, setContributionsData] = useState(null);
   const [userCampaigns, setUserCampaigns] = useState([]);
+  const [savedCampaigns, setSavedCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Edit Profile Modal State
@@ -136,14 +137,17 @@ export default function ProfilePage() {
   const loadProfileData = async () => {
     setLoading(true);
     try {
-      const [analyticsRes, contributionsRes, campaignsRes] = await Promise.all([
-        profileService.getCreatorAnalytics(),
-        profileService.getUserContributions(),
-        campaignService.getUserCampaigns(currentUser),
-      ]);
-      setAnalytics(analyticsRes);
-      setContributionsData(contributionsRes);
-      setUserCampaigns(campaignsRes || []);
+  const [analyticsRes, contributionsRes, campaignsRes, savedCampaignsRes] = await Promise.all([
+  profileService.getCreatorAnalytics(),
+  profileService.getUserContributions(),
+  campaignService.getUserCampaigns(currentUser),
+  profileService.getSavedCampaigns(),
+]);
+
+setAnalytics(analyticsRes);
+setContributionsData(contributionsRes);
+setUserCampaigns(campaignsRes || []);
+setSavedCampaigns(savedCampaignsRes || []);
     } catch (err) {
       console.error('Error loading profile dashboard data:', err);
     } finally {
@@ -312,6 +316,24 @@ export default function ProfilePage() {
             }`}
           >
             {userCampaigns.length}
+          </span>
+        </button>
+	<button
+          onClick={() => setActiveTab('saved')}
+          className={`pb-3.5 text-sm sm:text-base font-bold border-b-2 flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap ${
+            activeTab === 'saved'
+              ? 'border-[#007979] text-[#007979]'
+              : 'border-transparent text-[#6B7280] hover:text-[#1F2937]'
+          }`}
+        >
+          <span>🔖</span>
+          <span>Saved Campaigns</span>
+          <span
+            className={`px-2 py-0.5 rounded-full text-xs font-bold transition-colors ${
+              activeTab === 'saved' ? 'bg-[#007979] text-white' : 'bg-gray-100 text-[#6B7280]'
+            }`}
+          >
+            {savedCampaigns.length}
           </span>
         </button>
       </div>
@@ -636,6 +658,39 @@ export default function ProfilePage() {
       )}
 
       {/* Edit Profile Modal */}
+	      {/* TAB 4: SAVED CAMPAIGNS */}
+      {activeTab === 'saved' && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          <div>
+            <h3 className="text-xl font-bold text-[#1F2937]">Saved Campaigns</h3>
+            <p className="text-sm text-[#6B7280]">
+              Campaigns you've bookmarked for later
+            </p>
+          </div>
+
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <CampaignSkeleton />
+              <CampaignSkeleton />
+            </div>
+          ) : savedCampaigns.length === 0 ? (
+            <EmptyState
+              variant="profile"
+              title="No saved campaigns"
+              description="You haven't saved any campaigns yet. Browse campaigns and bookmark the ones you'd like to revisit."
+              actionText="Browse Campaigns"
+              onAction={() => navigate('/dashboard')}
+            />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {savedCampaigns.map((campaign) => (
+                <CampaignCard key={campaign.id} campaign={campaign} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
