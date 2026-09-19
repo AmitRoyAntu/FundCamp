@@ -9,7 +9,6 @@ import Textarea from '../../components/common/Textarea';
 import Dropdown from '../../components/common/Dropdown';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
-import CampaignWizard from '../../components/ai/CampaignWizard';
 import { CAMPAIGN_CATEGORIES, SUGGESTED_TAGS_BY_CATEGORY } from '../../constants/categories';
 import { DEPARTMENTS } from '../../constants/userTypes';
 import toast from 'react-hot-toast';
@@ -210,29 +209,6 @@ export default function CreateCampaignPage() {
     setTags(tags.filter((t) => t !== tagToRemove));
   };
 
-  // Merge a batch of AI-suggested tags in one update. handleAddTag reads `tags` from
-  // its closure, so calling it in a loop would drop every tag after the first.
-  const handleApplySuggestedTags = (suggestedTags) => {
-    const merged = [...tags];
-    let skipped = 0;
-
-    suggestedTags.forEach((tag) => {
-      const cleanTag = String(tag).replace(/^#/, '').trim();
-      if (!cleanTag) return;
-      if (merged.some((t) => t.toLowerCase() === cleanTag.toLowerCase())) return;
-      if (merged.length >= 8) {
-        skipped += 1;
-        return;
-      }
-      merged.push(cleanTag);
-    });
-
-    setTags(merged);
-    if (skipped > 0) {
-      toast.error(`${skipped} suggested tag(s) skipped — you can have up to 8 tags`);
-    }
-  };
-
   const handleTagKeyDown = (e) => {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
@@ -354,27 +330,6 @@ export default function CreateCampaignPage() {
               </p>
             </div>
           </div>
-
-          {/* AI writing assistance — conversational, suggestions applied on explicit accept */}
-          <CampaignWizard
-            draft={{
-              title: watch('title'),
-              description: watch('description'),
-              category: watch('category'),
-              tags,
-              goalAmount: watch('goalAmount'),
-            }}
-            onApplyTitle={(value) =>
-              setValue('title', value, { shouldValidate: true, shouldDirty: true })
-            }
-            onApplyCategory={(value) =>
-              setValue('category', value, { shouldValidate: true, shouldDirty: true })
-            }
-            onApplyDescription={(value) =>
-              setValue('description', value, { shouldValidate: true, shouldDirty: true })
-            }
-            onApplyTags={handleApplySuggestedTags}
-          />
 
           {/* Campaign Title */}
           <Input
