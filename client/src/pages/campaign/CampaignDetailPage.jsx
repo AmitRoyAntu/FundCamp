@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { campaignService } from '../../services/campaignService';
+import { profileService } from '../../services/profileService';
 import Avatar from '../../components/common/Avatar';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
@@ -59,7 +60,8 @@ export default function CampaignDetailPage() {
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
+  const [isSaved, setIsSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   // Tab State: 'campaign' | 'updates' | 'comments' | 'contributors' | 'expenses'
   const [activeTab, setActiveTab] = useState('campaign');
 
@@ -110,7 +112,23 @@ export default function CampaignDetailPage() {
     };
     fetchDetailAndData();
   }, [id]);
+    useEffect(() => {
+    if (!isAuthenticated || !id) {
+      setIsSaved(false);
+      return;
+    }
 
+    const checkSavedStatus = async () => {
+      try {
+        const saved = await profileService.checkSavedCampaign(id);
+        setIsSaved(saved);
+      } catch (err) {
+        console.warn('Failed to check saved campaign:', err);
+      }
+    };
+
+    checkSavedStatus();
+  }, [id, isAuthenticated]);
   const isCreator =
     currentUser &&
     campaign &&
@@ -121,7 +139,31 @@ export default function CampaignDetailPage() {
     navigator.clipboard.writeText(window.location.href);
     toast.success('Campaign link copied to clipboard!');
   };
+    const handleToggleSave = async () => {
+    if (!isAuthenticated) {
+      toast.error('Please log in to save campaigns.');
+      return;
+    }
 
+    try {
+      setSaving(true);
+
+      if (isSaved) {
+        await profileService.unsaveCampaign(id);
+        setIsSaved(false);
+        toast.success('Campaign removed from saved campaigns.');
+      } else {
+        await profileService.saveCampaign(id);
+        setIsSaved(true);
+        toast.success('Campaign saved.');
+      }
+    } catch (err) {
+      console.error('Failed to update saved campaign:', err);
+      toast.error('Failed to update saved campaign.');
+    } finally {
+      setSaving(false);
+    }
+  };
   const handleDonateClick = () => {
     if (isCreator) {
       toast.error('You cannot donate to your own campaign.', {
@@ -369,6 +411,14 @@ export default function CampaignDetailPage() {
           <Button variant="outline" size="sm" onClick={handleShare} icon={Share2}>
             Share Link
           </Button>
+	  <Button
+  		variant="outline"
+  		size="sm"
+  		onClick={handleToggleSave}
+  		disabled={saving}
+		>
+  		{saving ? 'Saving...' : isSaved ? '✓ Saved' : '🔖 Save Campaign'}
+	  </Button>
           {!isCreator && (
             <button
               type="button"

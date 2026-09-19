@@ -28,5 +28,35 @@ export const profileService = {
       console.warn('Failed to fetch creator analytics:', err);
       return { totalRaised: 0, totalGoal: 0, totalBackers: 0, campaigns: [], recentDonations: [], fundingTimeline: [] };
     }
+  },
+    async getSavedCampaigns() {
+    try {
+      const response = await apiClient.get('/profile/saved-campaigns');
+      return response.data.data || [];
+    } catch (err) {
+      console.warn('Failed to fetch saved campaigns:', err);
+      return [];
+    }
+  },
+
+  async saveCampaign(campaignId) {
+    const response = await apiClient.post(
+      `/profile/saved-campaigns/${campaignId}`
+    );
+    return response.data.data;
+  },
+
+  async unsaveCampaign(campaignId) {
+    const response = await apiClient.delete(
+      `/profile/saved-campaigns/${campaignId}`
+    );
+    return response.data;
+  },
+
+  async checkSavedCampaign(campaignId) {
+    const response = await apiClient.get(
+      `/profile/saved-campaigns/${campaignId}`
+    );
+    return response.data.data?.saved || false;
   }
 };

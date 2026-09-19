@@ -87,6 +87,13 @@ CREATE TABLE IF NOT EXISTS campaign_reports (
     admin_notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+-- Saved campaigns / bookmarks
+CREATE TABLE IF NOT EXISTS saved_campaigns (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    campaign_id INTEGER NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, campaign_id)
+);
 
 -- Performance Indexes on Foreign Keys & Search
 CREATE INDEX IF NOT EXISTS idx_campaigns_creator ON campaigns(creator_id);

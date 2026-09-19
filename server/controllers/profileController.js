@@ -1,3 +1,4 @@
+import { savedCampaignModel } from '../models/savedCampaignModel.js';
 import { User } from '../models/userModel.js';
 import { Campaign } from '../models/campaignModel.js';
 import { Donation } from '../models/donationModel.js';
@@ -193,6 +194,90 @@ export const getUserCreatorAnalytics = async (req, res) => {
       success: false,
       message: 'Internal server error',
       error: error.message
+    });
+  }
+};
+export const saveCampaign = async (req, res) => {
+  try {
+    const { campaignId } = req.params;
+
+    const savedCampaign = await savedCampaignModel.saveCampaign(
+      req.user.id,
+      campaignId
+    );
+
+    res.status(201).json({
+      success: true,
+      data: savedCampaign
+    });
+  } catch (error) {
+    console.error('Save campaign error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to save campaign'
+    });
+  }
+};
+
+export const unsaveCampaign = async (req, res) => {
+  try {
+    const { campaignId } = req.params;
+
+    await savedCampaignModel.unsaveCampaign(
+      req.user.id,
+      campaignId
+    );
+
+    res.json({
+      success: true,
+      message: 'Campaign removed from saved campaigns'
+    });
+  } catch (error) {
+    console.error('Unsave campaign error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to remove saved campaign'
+    });
+  }
+};
+
+export const checkSavedCampaign = async (req, res) => {
+  try {
+    const { campaignId } = req.params;
+
+    const saved = await savedCampaignModel.isCampaignSaved(
+      req.user.id,
+      campaignId
+    );
+
+    res.json({
+      success: true,
+      data: { saved }
+    });
+  } catch (error) {
+    console.error('Check saved campaign error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check saved campaign'
+    });
+  }
+};
+
+export const getSavedCampaigns = async (req, res) => {
+  try {
+    const campaigns = await savedCampaignModel.getSavedCampaigns(
+      req.user.id
+    );
+
+    res.json({
+      success: true,
+      data: campaigns
+    });
+  } catch (error) {
+    console.error('Get saved campaigns error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch saved campaigns'
     });
   }
 };
