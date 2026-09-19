@@ -24,6 +24,7 @@ export default function LoginPage() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm({
     defaultValues: {
@@ -111,7 +112,49 @@ export default function LoginPage() {
             Sign In
           </Button>
 
-          <div className="text-center pt-2">
+          {/* Quick Demo Logins for Pair Programming & Testing */}
+          <div className="pt-2 border-t border-[#E5E7EB] space-y-2">
+            <p className="text-xs font-bold text-[#6B7280] text-center uppercase tracking-wider">
+              Quick Demo Accounts
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setValue('email', 'admin@university.edu');
+                  setValue('password', '12345678');
+                }}
+                className="px-2 py-1.5 rounded-xl border border-[#007979]/30 bg-[#007979]/5 hover:bg-[#007979]/10 text-[#007979] text-xs font-bold transition-all cursor-pointer truncate"
+                title="Admin: admin@university.edu"
+              >
+                🛡️ Admin
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setValue('email', 'r.chen@university.edu');
+                  setValue('password', '12345678');
+                }}
+                className="px-2 py-1.5 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-bold transition-all cursor-pointer truncate"
+                title="Faculty: r.chen@university.edu"
+              >
+                🎓 Faculty
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setValue('email', 'sarah.j@university.edu');
+                  setValue('password', '12345678');
+                }}
+                className="px-2 py-1.5 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-bold transition-all cursor-pointer truncate"
+                title="Student: sarah.j@university.edu"
+              >
+                🎒 Student
+              </button>
+            </div>
+          </div>
+
+          <div className="text-center pt-1">
             <p className="text-sm text-[#6B7280]">
               Don't have an account?{' '}
               <Link to="/register" className="font-semibold text-[#007979] hover:underline">

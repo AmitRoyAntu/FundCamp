@@ -27,6 +27,12 @@ import {
   Link as LinkIcon,
   Check,
   RefreshCw,
+  FileText,
+  Paperclip,
+  Trash2,
+  ShieldCheck,
+  AlertCircle,
+  FileCheck,
 } from 'lucide-react';
 
 const STOCK_PRESETS = [
@@ -62,10 +68,20 @@ const STOCK_PRESETS = [
   },
 ];
 
+const DOCUMENT_TYPE_OPTIONS = [
+  'Department Approval Letter',
+  'Student / Faculty ID',
+  'Budget Proposal / Quotation',
+  'Medical Certificate / Hospital Estimate',
+  'Lab Safety / Ethics Clearance',
+  'Other Supporting Document',
+];
+
 export default function CreateCampaignPage() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const fileInputRef = useRef(null);
+  const docFileInputRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [tags, setTags] = useState([]);
   const [customTagInput, setCustomTagInput] = useState('');
@@ -74,6 +90,13 @@ export default function CreateCampaignPage() {
   const [imageMode, setImageMode] = useState('stock');
   const [isDragging, setIsDragging] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState('');
+
+  // Institutional Verification Documents state
+  const [documents, setDocuments] = useState([]);
+  const [selectedDocType, setSelectedDocType] = useState(DOCUMENT_TYPE_OPTIONS[0]);
+  const [docDragging, setDocDragging] = useState(false);
+  const [customDocUrl, setCustomDocUrl] = useState('');
+  const [customDocName, setCustomDocName] = useState('');
 
   const {
     register,
@@ -193,12 +216,82 @@ export default function CreateCampaignPage() {
     }
   };
 
+  const handleDocumentFile = (file) => {
+    if (!file) return;
+    if (file.size > 15 * 1024 * 1024) {
+      toast.error('Document file size must be under 15MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target.result;
+      const formattedSize =
+        file.size < 1024 * 1024
+          ? `${Math.round(file.size / 1024)} KB`
+          : `${(file.size / (1024 * 1024)).toFixed(1)} MB`;
+
+      const newDoc = {
+        name: file.name,
+        type: selectedDocType,
+        size: formattedSize,
+        url: dataUrl,
+        uploadedAt: new Date().toISOString(),
+      };
+
+      setDocuments((prev) => [...prev, newDoc]);
+      toast.success(`Attached "${file.name}" as ${selectedDocType}`);
+    };
+    reader.onerror = () => {
+      toast.error('Failed to read document file.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDocFileInputChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) handleDocumentFile(file);
+    if (docFileInputRef.current) docFileInputRef.current.value = '';
+  };
+
+  const handleDocDrop = (e) => {
+    e.preventDefault();
+    setDocDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleDocumentFile(file);
+  };
+
+  const handleAddDocUrl = (e) => {
+    e?.preventDefault?.();
+    if (!customDocUrl.trim()) {
+      toast.error('Please enter a valid document link URL.');
+      return;
+    }
+    const name = customDocName.trim() || `${selectedDocType}.pdf`;
+    const newDoc = {
+      name,
+      type: selectedDocType,
+      size: 'Web Link',
+      url: customDocUrl.trim(),
+      uploadedAt: new Date().toISOString(),
+    };
+    setDocuments((prev) => [...prev, newDoc]);
+    setCustomDocUrl('');
+    setCustomDocName('');
+    toast.success(`Attached link as ${selectedDocType}`);
+  };
+
+  const handleRemoveDocument = (idxToRemove) => {
+    setDocuments((prev) => prev.filter((_, idx) => idx !== idxToRemove));
+  };
+
   const onSubmit = async (data) => {
     setLoading(true);
     try {
       const payload = {
         ...data,
         tags,
+        documents,
       };
       const created = await campaignService.createCampaign(payload, currentUser);
       toast.success('Campaign created successfully!');
@@ -580,6 +673,182 @@ export default function CreateCampaignPage() {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Institutional Verification Documents Section */}
+          <div className="space-y-4 p-5 rounded-2xl bg-[#FFFDF8] border border-[#E5E7EB]">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <label className="block text-sm font-bold text-[#1F2937] flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-[#007979]" />
+                  Institutional Verification Documents
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#007979]/10 text-[#007979] border border-[#007979]/20 uppercase tracking-wider">
+                    Official Audit Dossier
+                  </span>
+                </label>
+                <p className="text-xs text-[#6B7280] mt-1 leading-relaxed">
+                  To protect our university community against fraud, all campaigns undergo review by Campus Administrators.
+                  Attach official proof such as Department Approval, Student/Faculty ID, or Budget Quotations.
+                </p>
+              </div>
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-gray-100 text-gray-700 shrink-0">
+                {documents.length} attached
+              </span>
+            </div>
+
+            {/* Document Type Selector */}
+            <div className="space-y-2 pt-1">
+              <label className="text-xs font-semibold text-[#4B5563] block">
+                1. Select Document Category to Attach:
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {DOCUMENT_TYPE_OPTIONS.map((typeOption) => {
+                  const isSelected = selectedDocType === typeOption;
+                  return (
+                    <button
+                      key={typeOption}
+                      type="button"
+                      onClick={() => setSelectedDocType(typeOption)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-[#007979] text-white shadow-xs'
+                          : 'bg-white border border-[#E5E7EB] text-[#4B5563] hover:border-[#007979] hover:text-[#007979]'
+                      }`}
+                    >
+                      {typeOption}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Upload Area */}
+            <div className="space-y-2 pt-1">
+              <label className="text-xs font-semibold text-[#4B5563] block">
+                2. Upload File or Link for <span className="text-[#007979] font-bold">"{selectedDocType}"</span>:
+              </label>
+              
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDocDragging(true);
+                }}
+                onDragLeave={() => setDocDragging(false)}
+                onDrop={handleDocDrop}
+                onClick={() => docFileInputRef.current?.click()}
+                className={`border-2 border-dashed rounded-2xl p-5 text-center cursor-pointer transition-all ${
+                  docDragging
+                    ? 'border-[#007979] bg-[#007979]/5 scale-[1.01]'
+                    : 'border-gray-300 bg-white hover:border-[#007979] hover:bg-gray-50'
+                }`}
+              >
+                <input
+                  ref={docFileInputRef}
+                  type="file"
+                  accept=".pdf,image/png,image/jpeg,image/webp,.doc,.docx"
+                  onChange={handleDocFileInputChange}
+                  className="hidden"
+                />
+                <div className="flex flex-col items-center justify-center space-y-1.5">
+                  <div className="w-10 h-10 rounded-xl bg-[#007979]/10 text-[#007979] flex items-center justify-center">
+                    <Paperclip className="w-5 h-5" />
+                  </div>
+                  <p className="text-sm font-bold text-[#1F2937]">
+                    Click to browse or drop file for <span className="text-[#007979]">{selectedDocType}</span>
+                  </p>
+                  <p className="text-xs text-[#6B7280]">
+                    PDF, PNG, JPG, Word • Up to 15MB
+                  </p>
+                </div>
+              </div>
+
+              {/* Or Direct Document Link */}
+              <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                <input
+                  type="text"
+                  placeholder="Optional custom doc title (e.g. Dean_Endorsement.pdf)"
+                  value={customDocName}
+                  onChange={(e) => setCustomDocName(e.target.value)}
+                  className="sm:w-1/3 px-3 py-2 text-xs border border-[#E5E7EB] rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#24B1B1]"
+                />
+                <input
+                  type="url"
+                  placeholder="Or paste institutional document link (e.g. Google Drive, university portal URL)"
+                  value={customDocUrl}
+                  onChange={(e) => setCustomDocUrl(e.target.value)}
+                  className="flex-1 px-3 py-2 text-xs border border-[#E5E7EB] rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#24B1B1]"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddDocUrl}
+                  icon={Plus}
+                >
+                  Add Link
+                </Button>
+              </div>
+            </div>
+
+            {/* Attached Documents List */}
+            <div className="pt-2 border-t border-[#E5E7EB] space-y-2">
+              <span className="text-xs font-bold text-[#1F2937] block">
+                Attached Verification Files ({documents.length}):
+              </span>
+
+              {documents.length === 0 ? (
+                <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50/70 border border-amber-200/60 text-xs text-amber-800">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <span>
+                    No documents attached yet. While optional during initial submission, uploading department approvals and student IDs significantly accelerates campaign verification.
+                  </span>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {documents.map((doc, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between p-3 rounded-xl bg-white border border-[#E5E7EB] hover:border-[#007979]/40 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-lg bg-[#007979]/10 text-[#007979] flex items-center justify-center shrink-0">
+                          <FileText className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-[#1F2937] truncate">{doc.name}</p>
+                          <p className="text-[11px] text-[#6B7280] flex items-center gap-1.5">
+                            <span className="font-semibold text-[#007979]">{doc.type}</span>
+                            <span>•</span>
+                            <span>{doc.size}</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {doc.url && (
+                          <a
+                            href={doc.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2.5 py-1 text-xs font-semibold text-[#007979] hover:underline"
+                          >
+                            Preview
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveDocument(idx)}
+                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                          title="Remove document"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#E5E7EB]">

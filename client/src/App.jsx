@@ -12,7 +12,7 @@ export default function App() {
       <Router>
         <div className="min-h-screen flex flex-col bg-[#FFFDF8] text-[#1F2937] selection:bg-[#FFE2AF] selection:text-[#8C5B00]">
           <Navbar />
-          <main className="flex-1 max-w-[1280px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <main className="flex-1 max-w-[1680px] w-full mx-auto px-3 sm:px-5 lg:px-8 py-5">
             <AppRoutes />
           </main>
           <Footer />

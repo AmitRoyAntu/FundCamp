@@ -1,8 +1,9 @@
 import express from 'express';
-import { getAllCampaigns, getCampaignById, createCampaign, processDonation } from '../controllers/campaignController.js';
+import { getAllCampaigns, getCampaignById, createCampaign, processDonation, reportCampaign } from '../controllers/campaignController.js';
 import { getUpdatesByCampaign, createUpdate } from '../controllers/updateController.js';
-import { getCommentsByCampaign, createComment } from '../controllers/commentController.js';
+import { getCommentsByCampaign, createComment, deleteComment } from '../controllers/commentController.js';
 import { getDonationsByCampaign } from '../controllers/donationController.js';
+import { getExpensesByCampaign, createCampaignExpense } from '../controllers/expenseController.js';
 import { verifyToken, optionalVerifyToken } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -12,9 +13,16 @@ router.get('/campaigns', getAllCampaigns);
 router.get('/campaigns/:id', getCampaignById);
 router.post('/campaigns', verifyToken, createCampaign);
 
+// Campaign Report route (Fraud & policy violations)
+router.post('/campaigns/:id/report', optionalVerifyToken, reportCampaign);
+
 // Campaign Donations routes
 router.get('/campaigns/:id/donations', getDonationsByCampaign);
 router.post('/campaigns/:id/donate', optionalVerifyToken, processDonation);
+
+// Campaign Expenses Transparency routes
+router.get('/campaigns/:id/expenses', optionalVerifyToken, getExpensesByCampaign);
+router.post('/campaigns/:id/expenses', verifyToken, createCampaignExpense);
 
 // Campaign Updates routes
 router.get('/campaigns/:id/updates', getUpdatesByCampaign);
@@ -23,5 +31,6 @@ router.post('/campaigns/:id/updates', verifyToken, createUpdate);
 // Campaign Comments routes
 router.get('/campaigns/:id/comments', getCommentsByCampaign);
 router.post('/campaigns/:id/comments', verifyToken, createComment);
+router.delete('/campaigns/:id/comments/:commentId', verifyToken, deleteComment);
 
 export default router;

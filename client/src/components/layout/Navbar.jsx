@@ -13,6 +13,7 @@ import {
   X,
   Home,
   Sparkles,
+  ShieldCheck,
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -21,23 +22,32 @@ export default function Navbar() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const isAdmin = currentUser?.userType === 'Admin' || currentUser?.user_type === 'Admin';
+
   const handleLogout = async () => {
     await logout();
     navigate('/login');
   };
 
-  const navLinks = [
+  const adminNavLinks = [
+    { name: 'Admin Portal', path: '/admin', icon: ShieldCheck },
+    { name: 'View Public Site', path: '/', icon: Home },
+  ];
+
+  const userNavLinks = [
     { name: 'Home', path: '/', icon: Home },
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Create Campaign', path: '/create', icon: PlusCircle, protected: true },
     { name: 'Profile', path: '/profile', icon: User, protected: true },
   ];
 
+  const navLinks = isAdmin ? adminNavLinks : userNavLinks;
+
   const isActive = (path) => location.pathname === path;
 
   return (
     <nav className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-[#E5E7EB]">
-      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1680px] mx-auto px-3 sm:px-5 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2.5 group">
@@ -54,12 +64,18 @@ export default function Navbar() {
             {navLinks.map((link) => {
               if (link.protected && !isAuthenticated) return null;
               const Icon = link.icon;
+              const isItemActive = isActive(link.path);
+              const isAdminPortalLink = link.path === '/admin';
               return (
                 <Link
                   key={link.path}
                   to={link.path}
                   className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition-colors ${
-                    isActive(link.path)
+                    isItemActive && isAdminPortalLink
+                      ? 'bg-[#007979] text-white shadow-xs'
+                      : isAdminPortalLink
+                      ? 'text-[#007979] bg-[#007979]/5 border border-[#007979]/20 hover:bg-[#007979]/10'
+                      : isItemActive
                       ? 'bg-[#007979]/10 text-[#007979]'
                       : 'text-[#1F2937] hover:bg-gray-100 hover:text-[#007979]'
                   }`}
@@ -78,7 +94,14 @@ export default function Navbar() {
                 <Link to="/profile" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
                   <Avatar src={currentUser?.avatar} name={currentUser?.fullName} size="sm" />
                   <div className="text-left hidden lg:block">
-                    <p className="text-xs font-semibold text-[#1F2937] leading-none">{currentUser?.fullName}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs font-semibold text-[#1F2937] leading-none">{currentUser?.fullName}</p>
+                      {isAdmin && (
+                        <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-[#007979] text-white">
+                          ADMIN
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[11px] text-[#6B7280] leading-tight mt-0.5">{currentUser?.userType}</p>
                   </div>
                 </Link>

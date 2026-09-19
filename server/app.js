@@ -8,6 +8,7 @@ import healthRoutes from './routes/healthRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import profileRoutes from './routes/profileRoutes.js';
 import campaignRoutes from './routes/campaignRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,6 +28,7 @@ app.use('/api', healthRoutes);
 app.use('/api', authRoutes);
 app.use('/api', profileRoutes);
 app.use('/api', campaignRoutes);
+app.use('/api', adminRoutes);
 
 // Serve client static build files if present
 const clientDistPath = path.join(__dirname, '../client/dist');
