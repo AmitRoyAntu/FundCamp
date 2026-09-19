@@ -20,3 +20,6 @@ build/
 !.env.example
 !client/.env.example
 !server/.env.example
+
+# Claude Code local settings (personal config and credentials — never commit)
+.claude/settings.local.json
