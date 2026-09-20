@@ -182,13 +182,24 @@ setSavedCampaigns(savedCampaignsRes || []);
   const fundingTimeline = analytics?.fundingTimeline || [];
   const overallPercentage = calculatePercentage(totalRaised, totalGoal);
 
+  const isAdmin = currentUser?.userType === 'Admin' || currentUser?.user_type === 'Admin';
+
   return (
     <div className="space-y-8 pb-16 max-w-[1280px] mx-auto">
       <PageHeader
-        title="Creator Dashboard & Profile"
-        description="Monitor your fundraising metrics, backer contributions, and university identity."
+        title={isAdmin ? "Administrator Profile & Workspace" : "Creator Dashboard & Profile"}
+        description={isAdmin ? "University administration identity, platform privileges, and moderation access." : "Monitor your fundraising metrics, backer contributions, and university identity."}
       >
         <div className="flex items-center gap-2.5">
+          {isAdmin && (
+            <Button
+              variant="primary"
+              onClick={() => navigate('/admin')}
+              icon={ShieldCheck}
+            >
+              Admin Portal
+            </Button>
+          )}
           <Button
             variant="outline"
             onClick={() => setIsModalOpen(true)}
@@ -232,8 +243,12 @@ setSavedCampaigns(savedCampaignsRes || []);
                 <p className="text-sm text-[#6B7280]">{currentUser.email}</p>
               </div>
 
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#FFE2AF] text-[#8C5B00] self-center md:self-start">
-                <GraduationCap className="w-3.5 h-3.5" />
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold self-center md:self-start ${
+                isAdmin
+                  ? 'bg-[#007979] text-white shadow-xs'
+                  : 'bg-[#FFE2AF] text-[#8C5B00]'
+              }`}>
+                {isAdmin ? <ShieldCheck className="w-3.5 h-3.5" /> : <GraduationCap className="w-3.5 h-3.5" />}
                 {currentUser.userType}
               </span>
             </div>
@@ -243,7 +258,7 @@ setSavedCampaigns(savedCampaignsRes || []);
                 <IdCard className="w-4 h-4 text-[#007979] shrink-0" />
                 <div className="min-w-0">
                   <p className="text-[11px] text-[#6B7280]">University ID</p>
-                  <p className="font-semibold text-xs truncate">{currentUser.universityId || 'STU-2026-08'}</p>
+                  <p className="font-semibold text-xs truncate">{currentUser.universityId || (isAdmin ? 'ADM-2026-001' : 'STU-2026-08')}</p>
                 </div>
               </div>
 
@@ -259,13 +274,39 @@ setSavedCampaigns(savedCampaignsRes || []);
                 <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
                 <div className="min-w-0">
                   <p className="text-[11px] text-[#6B7280]">Verification</p>
-                  <p className="font-semibold text-xs text-emerald-700">Verified Member</p>
+                  <p className="font-semibold text-xs text-emerald-700">{isAdmin ? 'Authorized Administrator' : 'Verified Member'}</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </Card>
+
+      {/* Administrator Portal Callout Banner */}
+      {isAdmin && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-[#007979]/10 border border-[#007979]/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-[#007979] text-white flex items-center justify-center shrink-0 shadow-xs">
+              <ShieldCheck className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-[#1F2937]">University Administrator Clearance Active</h3>
+              <p className="text-xs text-[#6B7280]">
+                You have administrative clearance to review verification documents, audit expense receipts, manage user status, and moderate campaigns.
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => navigate('/admin')}
+            icon={ArrowUpRight}
+            className="shrink-0 w-full sm:w-auto"
+          >
+            Open Admin Portal
+          </Button>
+        </div>
+      )}
 
       {/* Navigation Tab Bar */}
       <div className="flex border-b border-[#E5E7EB] space-x-6 overflow-x-auto">

@@ -37,9 +37,11 @@ export default function LoginPage() {
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      await login(data.email, data.password);
+      const loggedUser = await login(data.email, data.password);
       toast.success('Welcome back to FundCamp!');
-      navigate(from, { replace: true });
+      const isAdmin = loggedUser?.userType === 'Admin' || loggedUser?.user_type === 'Admin';
+      const targetPath = location.state?.from?.pathname || (isAdmin ? '/admin' : '/dashboard');
+      navigate(targetPath, { replace: true });
     } catch (err) {
       toast.error(err.message || 'Login failed. Please check credentials.');
     } finally {

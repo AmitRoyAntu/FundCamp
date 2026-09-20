@@ -47,7 +47,7 @@ export default function AdminRoute({ children }) {
               variant="primary"
               onClick={async () => {
                 try {
-                  await login('admin@university.edu', 'password123');
+                  await login('admin@university.edu', '12345678');
                 } catch {
                   navigate('/login');
                 }
