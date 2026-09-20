@@ -4,7 +4,6 @@ import { AuthProvider } from './contexts/AuthContext';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 import AppRoutes from './routes/AppRoutes';
-import ChatWidget from './components/ai/ChatWidget';
 import { Toaster } from 'react-hot-toast';
 
 export default function App() {
@@ -17,7 +16,6 @@ export default function App() {
             <AppRoutes />
           </main>
           <Footer />
-          <ChatWidget />
           <Toaster
             position="top-right"
             toastOptions={{
